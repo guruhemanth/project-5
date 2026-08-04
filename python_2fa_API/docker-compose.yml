@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
-  # 1. PostgreSQL Database Service
+  # 1. PostgreSQL Database Service (Pull from official Docker Hub image)
   postgres:
     image: postgres:15-alpine
-    container_name: python_2fa_postgres
+    container_name: python_transaction_postgres
     restart: always
     environment:
       POSTGRES_DB: my_flask_db
@@ -15,10 +13,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # 2. Flask Application Service
+  # 2. Flask Application Service (Built locally from Dockerfile)
   web:
     build: .
-    container_name: python_2fa_app
+    image: python-transaction-flask-app:v1.0
+    container_name: python_transaction_app
     restart: always
     ports:
       - "8090:8090"
