@@ -85,20 +85,17 @@ pipeline {
             }
         }
 
-        // ── Stage 3: Automated Testing (Pytest via Docker Container Agent) ──
+        // ── Stage 3: Automated Testing (Pytest in Docker Container) ────────
         stage('3. Automated Testing (Pytest)') {
-            agent {
-                docker {
-                    image 'python:3.11-slim'
-                    args '-u root'
-                }
-            }
             steps {
                 dir("${env.PROJECT_DIR}") {
                     sh '''
-                        python3 -m pip install --upgrade pip
-                        pip install -r requirements.txt pytest pytest-cov
-                        pytest --verbose
+                        echo "🐳 Running Pytest inside isolated python:3.11-slim container..."
+                        docker run --rm \
+                            -v "$PWD":/app \
+                            -w /app \
+                            python:3.11-slim \
+                            sh -c "pip install --upgrade pip && pip install -r requirements.txt pytest pytest-cov && pytest --verbose"
                     '''
                 }
             }
