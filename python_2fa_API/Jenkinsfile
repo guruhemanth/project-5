@@ -85,17 +85,13 @@ pipeline {
             }
         }
 
-        // ── Stage 3: Automated Testing (Pytest in Docker Container) ────────
+        // ── Stage 3: Automated Testing (Pytest) ────────────────────────────
         stage('3. Automated Testing (Pytest)') {
             steps {
                 dir("${env.PROJECT_DIR}") {
                     sh '''
-                        echo "🐳 Running Pytest inside isolated python:3.11-slim container..."
-                        docker run --rm \
-                            -v "$PWD":/app \
-                            -w /app \
-                            python:3.11-slim \
-                            sh -c "pip install --upgrade pip && pip install -r requirements.txt pytest pytest-cov && pytest --verbose"
+                        . venv/bin/activate
+                        pytest --verbose
                     '''
                 }
             }
