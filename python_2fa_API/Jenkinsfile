@@ -12,21 +12,48 @@ pipeline {
     }
 
     stages {
-        // ── Stage 0: Install Python3 & Venv System Packages if missing ─────
-            stage('0. Setup System Dependencies') {
-                steps {
-                    sh '''
-                        if ! command -v python3 >/dev/null 2>&1 || ! python3 -m venv --help >/dev/null 2>&1; then
-                            echo "📦 Installing Python3, Pip, and Venv..."
-                            apt-get update && apt-get install -y python3 python3-pip python3-venv
-                        else
-                            echo "✅ Python3 and venv are ready!"
-                        fi
-                    '''
-                }
-            }
+        // ── Stage 0: Universal OS Package Manager Setup ─────────────────────
+        stage('0. Setup Linux System Dependencies') {
+            steps {
+                sh '''
+                    echo "🔍 Checking system dependencies (Python3, Pip, Venv, GCC, LibPQ, Docker CLI)..."
+                    
+                    # Detect OS Package Manager (apt-get for Debian/Ubuntu, yum/dnf for RHEL/Fedora/CentOS)
+                    if command -v apt-get >/dev/null 2>&1; then
+                        PKG_MANAGER="apt-get"
+                        UPDATE_CMD="apt-get update"
+                        INSTALL_CMD="apt-get install -y"
+                        DEPS="python3 python3-pip python3-venv gcc libpq-dev docker.io"
+                    elif command -v dnf >/dev/null 2>&1; then
+                        PKG_MANAGER="dnf"
+                        UPDATE_CMD="dnf check-update || true"
+                        INSTALL_CMD="dnf install -y"
+                        DEPS="python3 python3-pip gcc libpq-devel docker"
+                    elif command -v yum >/dev/null 2>&1; then
+                        PKG_MANAGER="yum"
+                        UPDATE_CMD="yum check-update || true"
+                        INSTALL_CMD="yum install -y"
+                        DEPS="python3 python3-pip gcc postgresql-devel docker"
+                    fi
 
-        
+                    # Verify if any tools are missing
+                    MISSING=0
+                    command -v python3 >/dev/null 2>&1 || MISSING=1
+                    python3 -m venv --help >/dev/null 2>&1 || MISSING=1
+                    command -v gcc >/dev/null 2>&1 || MISSING=1
+                    command -v docker >/dev/null 2>&1 || MISSING=1
+
+                    if [ "$MISSING" -eq 1 ]; then
+                        echo "📦 Installing missing system packages using $PKG_MANAGER..."
+                        $UPDATE_CMD
+                        $INSTALL_CMD $DEPS
+                    else
+                        echo "✅ All Linux system dependencies (Python3, Venv, GCC, LibPQ, Docker) are ready!"
+                    fi
+                '''
+            }
+        }
+
         // ── Stage 1: Checkout ──────────────────────────────────────────────
         stage('1. Checkout Source Code') {
             steps {
@@ -34,14 +61,14 @@ pipeline {
             }
         }
 
-        // ── Stage 2: Linting & Syntax ──────────────────────────────────────
+        // ── Stage 2: Code Linting & Python Dependency Setup ─────────────────
         stage('2. Code Linting (Flake8)') {
             steps {
                 sh '''
-                    python3 -m venv venv
+                    python3 -m venv venv || python3 -m venv --system-site-packages venv
                     . venv/bin/activate
                     pip install --upgrade pip
-                    pip install -r requirements.txt flake8 pytest bandit pip-audit
+                    pip install -r requirements.txt flake8 pytest pytest-cov bandit pip-audit
                     flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
                     flake8 server_xorkeesign.py models.py routes/auth.py
                 '''
@@ -58,8 +85,8 @@ pipeline {
             }
         }
 
-        // ── Stage 4: Security Audits ────────────────────────────────────────
-        stage('4. Security Audits (Bandit & Pip-Audit)') {
+        // ── Stage 4: Security Audits (Bandit & Pip-Audit) ──────────────────
+        stage('4. Security Audits') {
             steps {
                 sh '''
                     . venv/bin/activate
@@ -69,7 +96,7 @@ pipeline {
             }
         }
 
-        // ── Stage 5: Build & Package Docker Image ───────────────────────────
+        // ── Stage 5: Build Docker Image ────────────────────────────────────
         stage('5. Build Docker Image') {
             steps {
                 sh "docker build -t ${DOCKER_HUB_REPO}:${IMAGE_TAG} ."
