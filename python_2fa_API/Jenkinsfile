@@ -12,6 +12,21 @@ pipeline {
     }
 
     stages {
+        // ── Stage 0: Install Python3 & Venv System Packages if missing ─────
+            stage('0. Setup System Dependencies') {
+                steps {
+                    sh '''
+                        if ! command -v python3 >/dev/null 2>&1 || ! python3 -m venv --help >/dev/null 2>&1; then
+                            echo "📦 Installing Python3, Pip, and Venv..."
+                            apt-get update && apt-get install -y python3 python3-pip python3-venv
+                        else
+                            echo "✅ Python3 and venv are ready!"
+                        fi
+                    '''
+                }
+            }
+
+        
         // ── Stage 1: Checkout ──────────────────────────────────────────────
         stage('1. Checkout Source Code') {
             steps {
