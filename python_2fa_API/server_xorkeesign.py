@@ -27,12 +27,6 @@ db.init_app(app)
 # Register authentication blueprint routes (/api/register, /api/login)
 app.register_blueprint(auth_bp)
 
-# Create Database Tables on startup
-# (skip in test mode so SQLite memory fixture handles it)
-if not app.config.get('TESTING'):
-    with app.app_context():
-        db.create_all()
-
 
 # ── HTTP connection ──────────────────────────────────────────────────────────
 def send_http_request(host, port, endpoint, payload, headers):
@@ -192,5 +186,7 @@ def upload_post():
 # ── Entry point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    with app.app_context():
+        db.create_all()
     print(f"🚀 Server is live at http://localhost:{PORT}")
     app.run(host="0.0.0.0", port=PORT, debug=False)  # nosec B104
