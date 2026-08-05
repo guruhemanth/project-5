@@ -124,10 +124,10 @@ pipeline {
         stage('6. Deploy to Kubernetes Cluster') {
             steps {
                 dir("${env.PROJECT_DIR}") {
-                    sh "kind load docker-image ${DOCKER_HUB_REPO}:${IMAGE_TAG} --name multi-node"
-                    sh "kubectl apply -f postgres-deployment.yaml"
-                    sh "kubectl apply -f deployment.yaml"
-                    sh "kubectl rollout status deployment/flask-app-deployment"
+                    sh "/usr/local/bin/kind load docker-image ${DOCKER_HUB_REPO}:${IMAGE_TAG} --name multi-node"
+                    sh "/usr/local/bin/kubectl apply -f postgres-deployment.yaml"
+                    sh "/usr/local/bin/kubectl apply -f deployment.yaml"
+                    sh "/usr/local/bin/kubectl rollout status deployment/flask-app-deployment"
                 }
             }
         }
