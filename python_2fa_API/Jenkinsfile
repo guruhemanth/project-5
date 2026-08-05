@@ -1,0 +1,85 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_REPO = 'python-transaction-flask-app'
+        IMAGE_TAG = "v2.${BUILD_NUMBER}"
+    }
+
+    options {
+        timeout(time: 15, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        // ── Stage 1: Checkout ──────────────────────────────────────────────
+        stage('1. Checkout Source Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        // ── Stage 2: Linting & Syntax ──────────────────────────────────────
+        stage('2. Code Linting (Flake8)') {
+            steps {
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install -r requirements.txt flake8 pytest bandit pip-audit
+                    flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+                    flake8 server_xorkeesign.py models.py routes/auth.py
+                '''
+            }
+        }
+
+        // ── Stage 3: Automated Testing ─────────────────────────────────────
+        stage('3. Automated Testing (Pytest)') {
+            steps {
+                sh '''
+                    . venv/bin/activate
+                    pytest --verbose
+                '''
+            }
+        }
+
+        // ── Stage 4: Security Audits ────────────────────────────────────────
+        stage('4. Security Audits (Bandit & Pip-Audit)') {
+            steps {
+                sh '''
+                    . venv/bin/activate
+                    bandit -r . -x ./venv,./test_app.py
+                    pip-audit
+                '''
+            }
+        }
+
+        // ── Stage 5: Build & Package Docker Image ───────────────────────────
+        stage('5. Build Docker Image') {
+            steps {
+                sh "docker build -t ${DOCKER_HUB_REPO}:${IMAGE_TAG} ."
+            }
+        }
+
+        // ── Stage 6: Kubernetes Deployment ──────────────────────────────────
+        stage('6. Deploy to Kubernetes Cluster') {
+            steps {
+                sh "kind load docker-image ${DOCKER_HUB_REPO}:${IMAGE_TAG} --name multi-node"
+                sh "kubectl apply -f postgres-deployment.yaml"
+                sh "kubectl apply -f deployment.yaml"
+                sh "kubectl rollout status deployment/flask-app-deployment"
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo "✅ CI/CD Pipeline Executed Successfully!"
+        }
+        failure {
+            echo "❌ CI/CD Pipeline Failed! Check build logs."
+        }
+    }
+}

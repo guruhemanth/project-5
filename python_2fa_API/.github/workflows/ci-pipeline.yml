@@ -1,0 +1,75 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  ci-pipeline:
+    name: Continuous Integration & Security Pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Stage 1: Source & Checkout ─────────────────────────────────────────
+      - name: 1. Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 2. Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 3. Install Dependencies & Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 pytest pytest-cov bandit pip-audit
+
+      # ── Stage 2: Code Syntax & Linting ──────────────────────────────────────
+      - name: 4. Stage 2 - Linting & Syntax Check (Flake8)
+        run: |
+          # Stop build if there are Python syntax errors or undefined symbols
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # PEP8 formatting rules check
+          flake8 server_xorkeesign.py models.py routes/auth.py --statistics
+
+      # ── Stage 3: Automated Unit & API Testing ────────────────────────────────
+      - name: 5. Stage 3 - Automated Unit & API Testing (Pytest)
+        run: |
+          pytest --verbose --cov=. --cov-report=xml
+
+      # ── Stage 4: Security & Vulnerability Auditing ───────────────────────────
+      - name: 6. Stage 4 - Code Security Audit (Bandit SAST)
+        run: |
+          bandit -r . -x ./venv,./test_app.py
+
+      - name: 7. Stage 4 - Dependency Vulnerability Scan (Pip-Audit)
+        run: |
+          pip-audit
+
+      # ── Stage 5: Build & Containerization ──────────────────────────────────
+      - name: 8. Log in to Docker Hub
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 9. Build & Push Docker Image
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:latest
+            ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:${{ github.sha }}
+
+      # ── Stage 6: Deployment & Notification ──────────────────────────────────
+      - name: 10. Stage 6 - Pipeline Status Notification
+        if: always()
+        run: |
+          echo "CI/CD Pipeline Completed with status: ${{ job.status }}"

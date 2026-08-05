@@ -16,7 +16,7 @@ services:
   # 2. Flask Application Service (Built locally from Dockerfile)
   web:
     build: .
-    image: python-transaction-flask-app:v1.0
+    image: python-transaction-flask-app:v2.0
     container_name: python_transaction_app
     restart: always
     ports:

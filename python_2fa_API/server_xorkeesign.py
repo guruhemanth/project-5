@@ -2,11 +2,11 @@ import hashlib
 import os
 import json
 import http.client
-import time
 import base64
 
-from flask import Flask, request, jsonify, redirect, send_from_directory, url_for
+from flask import Flask, request, jsonify, redirect, send_from_directory
 from models import db
+from routes.auth import auth_bp
 
 app = Flask(__name__, static_folder=".", template_folder="html")
 
@@ -16,23 +16,24 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ── Database Configuration ───────────────────────────────────────────────────
 # Reads DATABASE_URL environment variable set in ~/.bashrc
-# Fallback to local PostgreSQL if environment variable is not exported
 DEFAULT_DB_URL = "postgresql://postgres:Guru%40123@localhost:5432/my_flask_db"
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', DEFAULT_DB_URL)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL', DEFAULT_DB_URL
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize DB extension with Flask App
 db.init_app(app)
 
 # Register authentication blueprint routes (/api/register, /api/login)
-from routes.auth import auth_bp
 app.register_blueprint(auth_bp)
 
 # Create Database Tables automatically on startup (if they don't exist)
 with app.app_context():
     db.create_all()
 
-# ── HTTP connection ───────────────────────────────────────────────────────────
+
+# ── HTTP connection ──────────────────────────────────────────────────────────
 def send_http_request(host, port, endpoint, payload, headers):
     try:
         conn = http.client.HTTPConnection(host, port)
@@ -46,7 +47,7 @@ def send_http_request(host, port, endpoint, payload, headers):
         return None, {"error": str(e)}
 
 
-# ── GET routes ────────────────────────────────────────────────────────────────
+# ── GET routes ───────────────────────────────────────────────────────────────
 @app.route("/scripts/<path:filename>")
 def serve_scripts(filename):
     return send_from_directory("scripts", filename)
@@ -119,7 +120,7 @@ def serve_html(filename):
     return send_from_directory("html", filename)
 
 
-# ── POST /home ────────────────────────────────────────────────────────────────
+# ── POST /home ───────────────────────────────────────────────────────────────
 @app.route("/home", methods=["POST"])
 def home_post():
     if not request.is_json:
@@ -130,7 +131,7 @@ def home_post():
     return send_from_directory("html", "home.html")
 
 
-# ── POST /success ─────────────────────────────────────────────────────────────
+# ── POST /success ────────────────────────────────────────────────────────────
 @app.route("/success", methods=["POST"])
 def success_post():
     if not request.is_json:
@@ -143,7 +144,7 @@ def success_post():
     return send_from_directory("html", "success.html")
 
 
-# ── POST /upload ──────────────────────────────────────────────────────────────
+# ── POST /upload ─────────────────────────────────────────────────────────────
 @app.route("/upload", methods=["POST"])
 def upload_post():
     print("request received for upload file")
@@ -187,8 +188,8 @@ def upload_post():
     return redirect("/upload", code=303)
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
+# ── Entry point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     print(f"🚀 Server is live at http://localhost:{PORT}")
-    app.run(host="0.0.0.0", port=PORT, debug=False)
+    app.run(host="0.0.0.0", port=PORT, debug=False)  # nosec B104
