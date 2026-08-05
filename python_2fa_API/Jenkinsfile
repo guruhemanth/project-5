@@ -85,14 +85,37 @@ pipeline {
             }
         }
 
-        // ── Stage 3: Automated Testing (Pytest) ────────────────────────────
-        stage('3. Automated Testing (Pytest)') {
+        // ── Stage 3: Automated Testing with Ephemeral Postgres Container ───
+        stage('3. Automated Testing (Pytest & Postgres)') {
             steps {
                 dir("${env.PROJECT_DIR}") {
                     sh '''
+                        echo "🐘 Spinning up temporary PostgreSQL container for test database..."
+                        docker run -d \
+                            --name ci-postgres-${BUILD_NUMBER} \
+                            -e POSTGRES_DB=my_flask_db \
+                            -e POSTGRES_USER=postgres \
+                            -e POSTGRES_PASSWORD=Guru%40123 \
+                            -p 5432:5432 \
+                            postgres:15-alpine
+
+                        echo "⏳ Waiting for PostgreSQL container to start..."
+                        sleep 5
+
+                        echo "🧪 Running Pytest tests..."
                         . venv/bin/activate
-                        pytest --verbose
+                        DATABASE_URL="postgresql://postgres:Guru%40123@localhost:5432/my_flask_db" pytest --verbose
                     '''
+                }
+            }
+            post {
+                always {
+                    dir("${env.PROJECT_DIR}") {
+                        sh '''
+                            echo "🧹 Cleaning up test PostgreSQL container..."
+                            docker rm -f ci-postgres-${BUILD_NUMBER} || true
+                        '''
+                    }
                 }
             }
         }
