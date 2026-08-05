@@ -18,7 +18,6 @@ pipeline {
                 sh '''
                     echo "🔍 Checking system dependencies (Python3, Pip, Venv, GCC, LibPQ, Docker CLI)..."
                     
-                    # Detect OS Package Manager (apt-get for Debian/Ubuntu, yum/dnf for RHEL/Fedora/CentOS)
                     if command -v apt-get >/dev/null 2>&1; then
                         PKG_MANAGER="apt-get"
                         UPDATE_CMD="apt-get update"
@@ -36,7 +35,6 @@ pipeline {
                         DEPS="python3 python3-pip gcc postgresql-devel docker"
                     fi
 
-                    # Verify if any tools are missing
                     MISSING=0
                     command -v python3 >/dev/null 2>&1 || MISSING=1
                     python3 -m venv --help >/dev/null 2>&1 || MISSING=1
@@ -54,62 +52,84 @@ pipeline {
             }
         }
 
-        // ── Stage 1: Checkout ──────────────────────────────────────────────
-        stage('1. Checkout Source Code') {
+        // ── Stage 1: Checkout & Directory Auto-Detection ───────────────────
+        stage('1. Checkout Source Code & Set Directory') {
             steps {
                 checkout scm
+                script {
+                    // Automatically detect if repo root OR subfolder python_2fa_API contains the files
+                    if (fileExists('python_2fa_API/server_xorkeesign.py')) {
+                        echo "📁 Target project files found inside 'python_2fa_API' subfolder."
+                        env.PROJECT_DIR = 'python_2fa_API'
+                    } else if (fileExists('server_xorkeesign.py')) {
+                        echo "📁 Target project files found in root repository workspace."
+                        env.PROJECT_DIR = '.'
+                    } else {
+                        error "❌ Could not locate server_xorkeesign.py in repository root or python_2fa_API subfolder!"
+                    }
+                }
             }
         }
 
         // ── Stage 2: Code Linting & Python Dependency Setup ─────────────────
         stage('2. Code Linting (Flake8)') {
             steps {
-                sh '''
-                    python3 -m venv venv || python3 -m venv --system-site-packages venv
-                    . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements.txt flake8 pytest pytest-cov bandit pip-audit
-                    flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-                    flake8 server_xorkeesign.py models.py routes/auth.py
-                '''
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        python3 -m venv venv || python3 -m venv --system-site-packages venv
+                        . venv/bin/activate
+                        pip install --upgrade pip
+                        pip install -r requirements.txt flake8 pytest pytest-cov bandit pip-audit
+                        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+                        flake8 server_xorkeesign.py models.py routes/auth.py
+                    '''
+                }
             }
         }
 
-        // ── Stage 3: Automated Testing ─────────────────────────────────────
+        // ── Stage 3: Automated Testing (Pytest) ────────────────────────────
         stage('3. Automated Testing (Pytest)') {
             steps {
-                sh '''
-                    . venv/bin/activate
-                    pytest --verbose
-                '''
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        . venv/bin/activate
+                        pytest --verbose
+                    '''
+                }
             }
         }
 
         // ── Stage 4: Security Audits (Bandit & Pip-Audit) ──────────────────
         stage('4. Security Audits') {
             steps {
-                sh '''
-                    . venv/bin/activate
-                    bandit -r . -x ./venv,./test_app.py
-                    pip-audit
-                '''
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        . venv/bin/activate
+                        bandit -r . -x ./venv,./test_app.py
+                        pip-audit
+                    '''
+                }
             }
         }
 
         // ── Stage 5: Build Docker Image ────────────────────────────────────
         stage('5. Build Docker Image') {
             steps {
-                sh "docker build -t ${DOCKER_HUB_REPO}:${IMAGE_TAG} ."
+                dir("${env.PROJECT_DIR}") {
+                    sh "docker build -t ${DOCKER_HUB_REPO}:${IMAGE_TAG} ."
+                }
             }
         }
 
         // ── Stage 6: Kubernetes Deployment ──────────────────────────────────
         stage('6. Deploy to Kubernetes Cluster') {
             steps {
-                sh "kind load docker-image ${DOCKER_HUB_REPO}:${IMAGE_TAG} --name multi-node"
-                sh "kubectl apply -f postgres-deployment.yaml"
-                sh "kubectl apply -f deployment.yaml"
-                sh "kubectl rollout status deployment/flask-app-deployment"
+                dir("${env.PROJECT_DIR}") {
+                    sh "kind load docker-image ${DOCKER_HUB_REPO}:${IMAGE_TAG} --name multi-node"
+                    sh "kubectl apply -f postgres-deployment.yaml"
+                    sh "kubectl apply -f deployment.yaml"
+                    sh "kubectl rollout status deployment/flask-app-deployment"
+                }
             }
         }
     }
