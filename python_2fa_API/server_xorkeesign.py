@@ -27,7 +27,8 @@ db.init_app(app)
 # Register authentication blueprint routes (/api/register, /api/login)
 app.register_blueprint(auth_bp)
 
-# Create Database Tables on startup (skip in test mode so SQLite memory fixture handles it)
+# Create Database Tables on startup
+# (skip in test mode so SQLite memory fixture handles it)
 if not app.config.get('TESTING'):
     with app.app_context():
         db.create_all()
