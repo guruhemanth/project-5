@@ -126,6 +126,7 @@ pipeline {
                 dir("${env.PROJECT_DIR}") {
                     sh '''
                         export PATH=$PATH:/usr/local/bin
+                        export KUBECONFIG=/var/jenkins_home/.kube/config
                         kind load docker-image ${DOCKER_HUB_REPO}:${IMAGE_TAG} --name multi-node
                         kubectl apply -f postgres-deployment.yaml
                         kubectl apply -f deployment.yaml
