@@ -145,30 +145,31 @@ pipeline {
         stage('7. Deploy to EC2') {
             steps {
                 dir("${env.PROJECT_DIR}") {
-                    sh '''
-                        # Skip if EC2_HOST is not configured
-                        if [ -z "${EC2_HOST}" ] || [ "${EC2_HOST}" = "****" ]; then
-                            echo "⚠️  EC2_HOST not configured — skipping EC2 deployment."
-                            echo "   Add EC2_HOST, EC2_USER, EC2_SSH_KEY credentials in Jenkins to enable."
-                            exit 0
-                        fi
+                    script {
+                        def host = env.EC2_HOST ? env.EC2_HOST.trim() : ""
+                        if (!host || host == "localhost" || host == "127.0.0.1" || host == "NONE") {
+                            echo "⚠️  EC2_HOST is not set to a valid remote IP (current: '${host}') — skipping EC2 deployment."
+                            echo "   To enable EC2 deploy, set EC2_HOST in Jenkins Credentials to your real EC2 Public IP."
+                        } else {
+                            sh '''
+                                echo "📦 Saving Docker image as tar for EC2 transfer..."
+                                docker save ${DOCKER_HUB_REPO}:${IMAGE_TAG} \
+                                    -o /tmp/${DOCKER_HUB_REPO}-${IMAGE_TAG}.tar
 
-                        echo "📦 Saving Docker image as tar for EC2 transfer..."
-                        docker save ${DOCKER_HUB_REPO}:${IMAGE_TAG} \
-                            -o /tmp/${DOCKER_HUB_REPO}-${IMAGE_TAG}.tar
-
-                        echo "📝 Writing EC2 inventory for Ansible..."
-                        cat > /tmp/ec2_inventory.ini <<EOF
+                                echo "📝 Writing EC2 inventory for Ansible..."
+                                cat > /tmp/ec2_inventory.ini <<EOF
 [ec2]
 ${EC2_HOST} ansible_user=${EC2_USER} ansible_ssh_private_key_file=${EC2_SSH_KEY} ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 EOF
 
-                        echo "🚀 Running Ansible deploy playbook against EC2..."
-                        ansible-playbook -i /tmp/ec2_inventory.ini deploy_ec2.yml \
-                            -e "image_tag=${IMAGE_TAG}"
+                                echo "🚀 Running Ansible deploy playbook against EC2..."
+                                ansible-playbook -i /tmp/ec2_inventory.ini deploy_ec2.yml \
+                                    -e "image_tag=${IMAGE_TAG}"
 
-                        echo "✅ EC2 deployment complete!"
-                    '''
+                                echo "✅ EC2 deployment complete!"
+                            '''
+                        }
+                    }
                 }
             }
         }
