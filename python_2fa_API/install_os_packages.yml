@@ -1,0 +1,104 @@
+---
+# ── Ansible Playbook: Install OS Packages ────────────────────────────────────
+# Installs all required OS-level system packages for the Python 2FA Flask App.
+# Supports: Debian/Ubuntu (apt-get) and RedHat/Fedora/CentOS (dnf/yum)
+#
+# Usage:
+#   Local:  ansible-playbook -i inventory.ini install_os_packages.yml --connection=local
+#   Remote: ansible-playbook -i inventory.ini install_os_packages.yml -K
+
+- name: Install OS System Packages for Python 2FA Flask App
+  hosts: all
+  become: yes
+
+  vars:
+    # Debian/Ubuntu packages
+    debian_packages:
+      - python3
+      - python3-pip
+      - python3-venv
+      - gcc
+      - libpq-dev
+      - ansible
+
+    # RedHat/CentOS/Fedora equivalent packages
+    redhat_packages:
+      - python3
+      - python3-pip
+      - gcc
+      - gcc-c++
+      - postgresql-devel
+      - ansible
+
+  tasks:
+
+    # ── Show OS info before starting ─────────────────────────────────────────
+    - name: Display target OS information
+      debug:
+        msg: >
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          | Family: {{ ansible_os_family }}
+          | Arch: {{ ansible_architecture }}
+
+    # ── Debian / Ubuntu ──────────────────────────────────────────────────────
+    - name: Update apt cache (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install OS packages (Debian/Ubuntu)
+      apt:
+        name: "{{ debian_packages }}"
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Show installed packages (Debian/Ubuntu)
+      debug:
+        msg: "✅ Installed on {{ ansible_distribution }}: {{ debian_packages | join(', ') }}"
+      when: ansible_os_family == "Debian"
+
+    # ── RedHat / CentOS / Fedora ─────────────────────────────────────────────
+    - name: Install OS packages (RedHat/CentOS/Fedora)
+      package:
+        name: "{{ redhat_packages }}"
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Show installed packages (RedHat/Fedora)
+      debug:
+        msg: "✅ Installed on {{ ansible_distribution }}: {{ redhat_packages | join(', ') }}"
+      when: ansible_os_family == "RedHat"
+
+    # ── Verify all packages after install ────────────────────────────────────
+    - name: Verify python3 is available
+      command: python3 --version
+      register: python_version
+      changed_when: false
+
+    - name: Verify pip3 is available
+      command: pip3 --version
+      register: pip_version
+      changed_when: false
+
+    - name: Verify gcc is available
+      command: gcc --version
+      register: gcc_version
+      changed_when: false
+
+    - name: Verify ansible-playbook is available
+      command: ansible-playbook --version
+      register: ansible_version
+      changed_when: false
+
+    - name: Print verification results
+      debug:
+        msg:
+          - "🐍 {{ python_version.stdout }}"
+          - "📦 {{ pip_version.stdout }}"
+          - "⚙️  {{ gcc_version.stdout_lines[0] }}"
+          - "🚀 {{ ansible_version.stdout_lines[0] }}"
+
+    - name: Final success message
+      debug:
+        msg: "🎉 All OS packages installed and verified successfully on {{ inventory_hostname }}!"
