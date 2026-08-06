@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Step 5: Copy requirements and install Python packages
+# Step 5: Copy runtime requirements and install only production Python packages
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

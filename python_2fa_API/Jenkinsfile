@@ -78,7 +78,7 @@ pipeline {
                         python3 -m venv venv || python3 -m venv --system-site-packages venv
                         . venv/bin/activate
                         pip install --upgrade pip
-                        pip install -r requirements.txt flake8 pytest pytest-cov bandit pip-audit
+                        pip install -r requirements-dev.txt
                         flake8 server_xorkeesign.py models.py routes/auth.py --statistics
                     '''
                 }
