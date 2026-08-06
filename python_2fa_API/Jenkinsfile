@@ -146,6 +146,13 @@ pipeline {
             steps {
                 dir("${env.PROJECT_DIR}") {
                     sh '''
+                        # Skip if EC2_HOST is not configured
+                        if [ -z "${EC2_HOST}" ] || [ "${EC2_HOST}" = "****" ]; then
+                            echo "⚠️  EC2_HOST not configured — skipping EC2 deployment."
+                            echo "   Add EC2_HOST, EC2_USER, EC2_SSH_KEY credentials in Jenkins to enable."
+                            exit 0
+                        fi
+
                         echo "📦 Saving Docker image as tar for EC2 transfer..."
                         docker save ${DOCKER_HUB_REPO}:${IMAGE_TAG} \
                             -o /tmp/${DOCKER_HUB_REPO}-${IMAGE_TAG}.tar

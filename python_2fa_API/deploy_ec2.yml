@@ -33,11 +33,25 @@
         state: present
       when: ansible_os_family == "Debian"
 
-    - name: Ensure Docker service is running
-      service:
+    - name: Start Docker via systemd (EC2 with systemd)
+      systemd:
         name: docker
         state: started
         enabled: yes
+      failed_when: false
+      ignore_errors: yes
+
+    - name: Start Docker directly if systemd not available (fallback)
+      command: dockerd &
+      failed_when: false
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Verify Docker is running
+      command: docker info
+      register: docker_info
+      failed_when: docker_info.rc != 0
+      changed_when: false
 
     # ── Step 2: Copy Docker image tar from Jenkins to EC2 ────────────────────
     - name: Create app directory on EC2
