@@ -129,6 +129,7 @@ pipeline {
                         export KUBECONFIG=/var/jenkins_home/.kube/config
                         kind load docker-image ${DOCKER_HUB_REPO}:${IMAGE_TAG} --name multi-node
                         kubectl apply -f postgres-deployment.yaml
+                        sed -i "s|image: python-transaction-flask-app:.*|image: ${DOCKER_HUB_REPO}:${IMAGE_TAG}|g" deployment.yaml
                         kubectl apply -f deployment.yaml
                         kubectl rollout status deployment/flask-app-deployment
                     '''
