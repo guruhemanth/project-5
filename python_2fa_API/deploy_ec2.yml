@@ -105,7 +105,7 @@
 
     - name: Show container ID
       debug:
-        msg: "🚀 Container started with ID: {{ container_run.stdout }}"
+        msg: "🚀 Container started with ID: {{ container_run.stdout }} and dburl is {{ db_url }}"
 
     # ── Step 6: Verify container is running ───────────────────────────────────
     - name: Wait for Flask app to be ready
