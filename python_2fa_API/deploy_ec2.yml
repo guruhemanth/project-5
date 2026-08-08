@@ -132,4 +132,4 @@
 
     - name: Deployment complete
       debug:
-        msg: "🎉 Deployment successful! Flask app running at http://{{ ansible_host }}:{{ app_port }}"
+        msg: "🎉 Deployment successful! Flask app running at http://{{ ansible_host }}:{{ app_port }} | DB URL: {{ db_url }}"
