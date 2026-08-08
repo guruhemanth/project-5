@@ -16,7 +16,7 @@
     image_tag: "{{ lookup('env', 'IMAGE_TAG') | default('latest') }}"
     app_port: 8090
     container_name: "flask-2fa-app"
-    db_url: "{{ lookup('env', 'DATABASE_URL') | default('postgresql://postgres:GuruH123@flask-2fa-postgres.cx2gesqyit6u.ap-south-1.rds.amazonaws.com:5432/my_flask_db') }}"
+    db_url: "{{ db_url | default(lookup('env', 'DATABASE_URL')) | default('postgresql://postgres:GuruH123@flask-2fa-postgres.cx2gesqyit6u.ap-south-1.rds.amazonaws.com:5432/my_flask_db') }}"
 
   tasks:
 
@@ -81,14 +81,14 @@
       debug:
         msg: "{{ docker_load_output.stdout }}"
 
-    # ── Step 4: Stop and remove old container if running ─────────────────────
-    - name: Stop existing Flask container (if running)
-      command: "docker stop {{ container_name }}"
+    # ── Step 4: Stop, remove old container & free port 8090 ─────────────────
+    - name: Force stop and remove existing container
+      command: "docker rm -f {{ container_name }}"
       failed_when: false
       changed_when: false
 
-    - name: Remove existing Flask container (if exists)
-      command: "docker rm {{ container_name }}"
+    - name: Ensure port {{ app_port }} is freed (kill any leftover process)
+      shell: "fuser -k {{ app_port }}/tcp || true"
       failed_when: false
       changed_when: false
 

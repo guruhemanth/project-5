@@ -169,7 +169,8 @@ EOF
 
                                 echo "🚀 Running Ansible deploy playbook against EC2..."
                                 ansible-playbook -i /tmp/ec2_inventory.ini deploy_ec2.yml \
-                                    -e "image_tag=${IMAGE_TAG}"
+                                    -e "image_tag=${IMAGE_TAG}" \
+                                    -e "db_url=${DATABASE_URL}"
 
                                 echo "✅ EC2 deployment complete!"
                             '''
