@@ -7,6 +7,7 @@ pipeline {
         EC2_HOST = credentials('EC2_HOST')          // EC2 public IP stored in Jenkins credentials
         EC2_USER = credentials('EC2_USER')          // e.g. ubuntu or ec2-user
         EC2_SSH_KEY = credentials('EC2_SSH_KEY')    // SSH private key (.pem) stored in Jenkins
+        DATABASE_URL = credentials('DATABASE_URL')  // AWS RDS PostgreSQL URL stored in Jenkins
     }
 
     options {
