@@ -4,3 +4,6 @@ __pycache__/
 .env
 terraform/
 ansible/
+ansible.cfg
+ansible.log
+inventory.ini
