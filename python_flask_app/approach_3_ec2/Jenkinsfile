@@ -142,7 +142,7 @@ pipeline {
                                 echo "📝 Writing EC2 inventory for Ansible..."
                                 cat > /tmp/ec2_inventory.ini <<EOF
 [ec2]
-43.204.255.185
+13.202.15.172
 
 [ec2:vars]
 ansible_user=${EC2_USER}
