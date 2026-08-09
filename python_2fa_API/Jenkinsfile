@@ -74,7 +74,7 @@ pipeline {
             }
         }
 
-        // ── Stage 2: Code Linting & Python Dependency Setup ─────────────────
+        // ── Stage 2: Code Linting & Python Dependency Setup ────────────────
         stage('2. Code Linting (Flake8)') {
             steps {
                 dir("${env.PROJECT_DIR}") {
