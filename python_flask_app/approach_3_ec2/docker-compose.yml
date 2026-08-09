@@ -1,0 +1,29 @@
+services:
+  # 1. Local PostgreSQL Container
+  postgres:
+    image: postgres:15-alpine
+    container_name: flask-2fa-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: my_flask_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Guru@123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. Flask Application Container
+  web:
+    image: ${APP_IMAGE}:${IMAGE_TAG}
+    container_name: flask-2fa-app
+    restart: always
+    ports:
+      - "8090:8090"
+    environment:
+      DATABASE_URL: postgresql://postgres:Guru%40123@postgres:5432/my_flask_db
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:

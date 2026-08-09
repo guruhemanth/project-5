@@ -1,0 +1,127 @@
+---
+# ── Ansible Playbook: Deploy Flask App + Postgres via Docker Compose to EC2 ──
+- name: Deploy Flask App and Postgres via Docker Compose to EC2
+  hosts: ec2
+  become: yes
+  vars:
+    app_image: "python-transaction-flask-app"
+    image_tag: "{{ lookup('env', 'IMAGE_TAG') | default('latest') }}"
+    app_port: 8090
+    app_dir: "/opt/flask-app"
+
+  tasks:
+
+    # ── Step 1: Install Docker & Docker Compose on EC2 ────────────────────────
+    - name: Update apt cache (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install Docker & Docker Compose Plugin (Debian/Ubuntu)
+      apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install Docker (RedHat/Amazon Linux)
+      package:
+        name: docker
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Download standalone docker-compose binary (fallback if needed)
+      get_url:
+        url: "https://github.com/docker/compose/releases/latest/download/docker-compose-Linux-x86_64"
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+      ignore_errors: yes
+
+    - name: Start Docker via systemd
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+      failed_when: false
+      ignore_errors: yes
+
+    - name: Verify Docker is running
+      command: docker info
+      register: docker_info
+      failed_when: docker_info.rc != 0
+      changed_when: false
+
+    # ── Step 2: Transfer Docker image tar & docker-compose.yml to EC2 ─────────
+    - name: Create app directory on EC2
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy Docker image tar to EC2
+      copy:
+        src: "/tmp/{{ app_image }}-{{ image_tag }}.tar"
+        dest: "{{ app_dir }}/{{ app_image }}-{{ image_tag }}.tar"
+        mode: '0644'
+
+    - name: Copy docker-compose.yml to EC2
+      copy:
+        src: "docker-compose.yml"
+        dest: "{{ app_dir }}/docker-compose.yml"
+        mode: '0644'
+
+    # ── Step 3: Load Docker image into EC2 Docker ─────────────────────────────
+    - name: Load Flask app Docker image from tar
+      command: "docker load -i {{ app_dir }}/{{ app_image }}-{{ image_tag }}.tar"
+      register: docker_load_output
+
+    - name: Show docker load output
+      debug:
+        msg: "{{ docker_load_output.stdout }}"
+
+    # ── Step 4: Launch Services with Docker Compose ──────────────────────────
+    - name: Deploy services using docker compose
+      shell: |
+        export APP_IMAGE="{{ app_image }}"
+        export IMAGE_TAG="{{ image_tag }}"
+        if command -v docker-compose >/dev/null 2>&1; then
+          docker-compose up -d --remove-orphans
+        else
+          docker compose up -d --remove-orphans
+        fi
+      args:
+        chdir: "{{ app_dir }}"
+      register: compose_output
+
+    - name: Show docker compose output
+      debug:
+        msg: "{{ compose_output.stdout }}"
+
+    # ── Step 5: Verify container status ───────────────────────────────────────
+    - name: Wait for Flask app port {{ app_port }} to be ready
+      wait_for:
+        host: localhost
+        port: "{{ app_port }}"
+        delay: 3
+        timeout: 30
+
+    - name: Show running containers
+      command: docker ps
+      register: docker_ps_output
+      changed_when: false
+
+    - name: Display running containers
+      debug:
+        msg: "{{ docker_ps_output.stdout_lines }}"
+
+    # ── Step 6: Cleanup image tar ─────────────────────────────────────────────
+    - name: Remove image tar file from EC2
+      file:
+        path: "{{ app_dir }}/{{ app_image }}-{{ image_tag }}.tar"
+        state: absent
+
+    - name: Deployment complete
+      debug:
+        msg: "🎉 Deployment successful via Docker Compose! Flask app running at http://{{ ansible_host }}:{{ app_port }}"

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TransactionAPI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border: 1px solid #ccc;
+        }
+        code {
+            font-family: Consolas, monospace;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h2>Python Code Snippet for Transaction</h2>
+    <pre><code>
+if self.path == "/home":
+	print("🔐 Authenticating user for /home page...")
+	payload = json.dumps({
+                "userid": "1234",
+                "dataToBeSigned": json.dumps({
+                "date": data.get("date"),
+                "description": data.get("description"),
+                "type": data.get("type"),
+                "amount": data.get("amount")
+                }),
+                "displaytype": "json",
+                "title": "Success Transaction"
+                })
+
+	headers = { 'Content-Type': "application/json" }
+
+	try:
+		conn = http.client.HTTPSConnection("192.168.8.150", 4443, context=ssl._create_unverified_context()) --> used to skip ssl verification for API call
+		conn.request("POST", "/OdysseyTech/data/sign", payload, headers)
+		res = conn.getresponse()
+		api_response = json.loads(res.read().decode("utf-8"))
+
+		print("✅ Signing API response received:", api_response)
+
+		if "signature" in api_response:	
+			self.path = "/html/home.html"
+			return http.server.SimpleHTTPRequestHandler.do_GET(self)
+    </code></pre>
+	<a href="/home" style="padding: 10px 20px; background-color: #007BFF; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">
+    Back
+	</a>
+</body>
+</html>

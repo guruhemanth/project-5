@@ -56,19 +56,19 @@ pipeline {
             }
         }
 
-        // ── Stage 1: Checkout & Directory Auto-Detection ───────────────────
-        stage('1. Checkout Source Code & Set Directory') {
+        // ── Stage 1: Checkout Source Code & Set Directory ───────────────────
+        stage('1. Checkout Source Code') {
             steps {
                 checkout scm
                 script {
-                    if (fileExists('python_2fa_API/server_xorkeesign.py')) {
-                        echo "📁 Target project files found inside 'python_2fa_API' subfolder."
-                        env.PROJECT_DIR = 'python_2fa_API'
+                    if (fileExists('python_flask_app/approach_2_ec2_and_RDS/server_xorkeesign.py')) {
+                        echo "📁 Target project files found inside 'python_flask_app/approach_2_ec2_and_RDS' subfolder."
+                        env.PROJECT_DIR = 'python_flask_app/approach_2_ec2_and_RDS'
                     } else if (fileExists('server_xorkeesign.py')) {
                         echo "📁 Target project files found in root repository workspace."
                         env.PROJECT_DIR = '.'
                     } else {
-                        error "❌ Could not locate server_xorkeesign.py in repository root or python_2fa_API subfolder!"
+                        error "❌ Could not locate server_xorkeesign.py in repository root or python_flask_app/approach_2_ec2_and_RDS!"
                     }
                 }
             }
@@ -124,25 +124,8 @@ pipeline {
             }
         }
 
-        // ── Stage 6: Kubernetes Deployment ──────────────────────────────────
-        stage('6. Deploy to Kubernetes Cluster') {
-            steps {
-                dir("${env.PROJECT_DIR}") {
-                    sh '''
-                        export PATH=$PATH:/usr/local/bin
-                        export KUBECONFIG=/var/jenkins_home/.kube/config
-                        kind load docker-image ${DOCKER_HUB_REPO}:${IMAGE_TAG} --name multi-node
-                        kubectl apply -f postgres-deployment.yaml
-                        sed -i "s|image: python-transaction-flask-app:.*|image: ${DOCKER_HUB_REPO}:${IMAGE_TAG}|g" deployment.yaml
-                        kubectl apply -f deployment.yaml
-                        kubectl rollout status deployment/flask-app-deployment
-                    '''
-                }
-            }
-        }
-
-        // ── Stage 7: Deploy to EC2 via Ansible ──────────────────────────────
-        stage('7. Deploy to EC2') {
+        // ── Stage 6: Deploy to EC2 via Ansible ──────────────────────────────
+        stage('6. Deploy to EC2') {
             steps {
                 dir("${env.PROJECT_DIR}") {
                     script {
