@@ -165,7 +165,9 @@ EOF
 
     post {
         always {
-            cleanWs()
+            node {
+                cleanWs()
+            }
         }
         success {
             echo "✅ CI/CD Pipeline Executed Successfully!"

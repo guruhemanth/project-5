@@ -162,7 +162,9 @@ pipeline {
 
     post {
         always {
-            cleanWs()
+            node {
+                cleanWs()
+            }
         }
         success {
             echo "✅ EKS CI/CD Pipeline Executed Successfully!"
