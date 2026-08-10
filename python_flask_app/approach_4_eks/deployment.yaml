@@ -6,6 +6,8 @@ metadata:
     app: flask-app
 spec:
   replicas: 1 # Single replica for t3.micro nodes
+  strategy:
+    type: Recreate # Kills old pod first to free ENI IP on t3.micro node before starting new pod
   selector:
     matchLabels:
       app: flask-app
