@@ -1,0 +1,174 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_REPO = 'guruhemanth/python-transaction-flask-app'
+        IMAGE_TAG = "v4.${BUILD_NUMBER}"
+        AWS_REGION = 'ap-south-1'
+        EKS_CLUSTER_NAME = 'flask-2fa-eks'
+        DOCKERHUB_CREDENTIALS = credentials('DOCKER_HUB_CREDS')
+    }
+
+    options {
+        timeout(time: 15, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        // ── Stage 0: Universal OS Package Manager Setup ─────────────────────
+        stage('0. Setup Linux System Dependencies') {
+            steps {
+                sh '''
+                    echo "🔍 Checking system dependencies (Python3, Pip, Venv, GCC, LibPQ, Docker CLI, kubectl, AWS CLI)..."
+                    
+                    if command -v apt-get >/dev/null 2>&1; then
+                        PKG_MANAGER="apt-get"
+                        UPDATE_CMD="apt-get update"
+                        INSTALL_CMD="apt-get install -y"
+                        DEPS="python3 python3-pip python3-venv gcc libpq-dev docker.io awscli"
+                    elif command -v dnf >/dev/null 2>&1; then
+                        PKG_MANAGER="dnf"
+                        UPDATE_CMD="dnf check-update || true"
+                        INSTALL_CMD="dnf install -y"
+                        DEPS="python3 python3-pip gcc libpq-devel docker awscli"
+                    elif command -v yum >/dev/null 2>&1; then
+                        PKG_MANAGER="yum"
+                        UPDATE_CMD="yum check-update || true"
+                        INSTALL_CMD="yum install -y"
+                        DEPS="python3 python3-pip gcc postgresql-devel docker awscli"
+                    fi
+
+                    MISSING=0
+                    command -v python3 >/dev/null 2>&1 || MISSING=1
+                    python3 -m venv --help >/dev/null 2>&1 || MISSING=1
+                    command -v gcc >/dev/null 2>&1 || MISSING=1
+                    command -v docker >/dev/null 2>&1 || MISSING=1
+                    command -v kubectl >/dev/null 2>&1 || MISSING=1
+
+                    if [ "$MISSING" -eq 1 ]; then
+                        echo "📦 Installing missing system packages using $PKG_MANAGER..."
+                        $UPDATE_CMD
+                        $INSTALL_CMD $DEPS
+                    else
+                        echo "✅ All Linux system dependencies (Python3, Venv, GCC, LibPQ, Docker, kubectl, AWS CLI) are ready!"
+                    fi
+                '''
+            }
+        }
+
+        // ── Stage 1: Checkout Source Code & Set Directory ───────────────────
+        stage('1. Checkout Source Code') {
+            steps {
+                checkout scm
+                script {
+                    if (fileExists('python_flask_app/approach_4_eks/server_xorkeesign.py')) {
+                        echo "📁 Target project files found inside 'python_flask_app/approach_4_eks' subfolder."
+                        env.PROJECT_DIR = 'python_flask_app/approach_4_eks'
+                    } else if (fileExists('server_xorkeesign.py')) {
+                        echo "📁 Target project files found in root repository workspace."
+                        env.PROJECT_DIR = '.'
+                    } else {
+                        error "❌ Could not locate server_xorkeesign.py in repository root or python_flask_app/approach_4_eks!"
+                    }
+                }
+            }
+        }
+
+        // ── Stage 2: Code Linting & Python Dependency Setup ────────────────
+        stage('2. Code Linting (Flake8)') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        python3 -m venv venv || python3 -m venv --system-site-packages venv
+                        . venv/bin/activate
+                        pip install --upgrade pip
+                        pip install -r requirements-dev.txt
+                        flake8 server_xorkeesign.py models.py routes/auth.py --statistics
+                    '''
+                }
+            }
+        }
+
+        // ── Stage 3: Automated Testing (Pytest with In-Memory SQLite) ───────
+        stage('3. Automated Testing (Pytest)') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        echo "🧪 Running Pytest tests with isolated SQLite in-memory DB..."
+                        . venv/bin/activate
+                        DATABASE_URL="sqlite:///:memory:" pytest --verbose
+                    '''
+                }
+            }
+        }
+
+        // ── Stage 4: Security Audits (Bandit & Pip-Audit) ──────────────────
+        stage('4. Security Audits') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        . venv/bin/activate
+                        bandit -r . -x ./venv,./test_app.py
+                        pip-audit
+                    '''
+                }
+            }
+        }
+
+        // ── Stage 5: Build & Push Docker Image to Docker Hub ───────────────
+        stage('5. Build & Push Docker Image') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        echo "🐳 Building Docker image ${DOCKER_HUB_REPO}:${IMAGE_TAG}..."
+                        docker build -t ${DOCKER_HUB_REPO}:${IMAGE_TAG} .
+                        
+                        echo "🔐 Authenticating and pushing to Docker Hub..."
+                        docker login 
+                        docker push ${DOCKER_HUB_REPO}:${IMAGE_TAG}
+                        echo "✅ Docker image successfully pushed to Docker Hub!"
+                    '''
+                }
+            }
+        }
+
+        // ── Stage 6: Deploy to Amazon EKS Cluster ────────────────────────────
+        stage('6. Deploy to Amazon EKS') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        export PATH=$PATH:/usr/local/bin
+                        echo "🔌 Connecting to Amazon EKS cluster ${EKS_CLUSTER_NAME} in region ${AWS_REGION}..."
+                        aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER_NAME}
+                        
+                        echo "📦 Deploying PostgreSQL Database to EKS..."
+                        kubectl apply -f postgres-deployment.yaml
+                        
+                        echo "🚀 Updating and deploying Flask App to EKS..."
+                        sed -i "s|image: guruhemanth/python-transaction-flask-app:.*|image: ${DOCKER_HUB_REPO}:${IMAGE_TAG}|g" deployment.yaml
+                        kubectl apply -f deployment.yaml
+                        
+                        echo "⏳ Waiting for rollout status..."
+                        kubectl rollout status deployment/flask-app-deployment --timeout=120s
+                        
+                        echo "✅ EKS Deployment Complete!"
+                        kubectl get pods -o wide
+                        kubectl get svc
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo "✅ EKS CI/CD Pipeline Executed Successfully!"
+        }
+        failure {
+            echo "❌ EKS CI/CD Pipeline Failed! Check build logs."
+        }
+    }
+}

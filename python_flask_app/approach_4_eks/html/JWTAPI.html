@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LoginAPI</title>
+    <style>
+        body {
+            font-family: Calibri, sans-serif;
+            padding: 20px;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border: 1px solid #ccc;
+        }
+        code {
+            font-family: Consolas, monospace;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+		<h3>Pre requsites:</h3>
+		<div>
+		<li> Place consumer.js and OTL_JWS.py in server path to get jws </li>
+		<li> Copy the consumer.js code into the python server code </li>
+		<li> Import the OTL_JWS library into the server code</li>
+		</div>
+    <h2>Python Code Snippet to fetch JWT</h2>
+    <pre><code>
+	import OTL_JWS
+			
+            try:
+                privateKey = open("odysseytech.pri").read()
+            except Exception as e:
+                self.send_error_response(500, f"Private key read failed: {str(e)}")
+                return
+            applicationId = "OdysseyTech"
+            sig = OTL_JWS.createJWS(privateKey, applicationId)
+            print("Sending JWS for authToken...")
+            ((time.sleep(7)))
+            auth_headers = {'Content-Type': "application/json"}
+            status, auth_response = send_https_request("192.168.8.150", 4443, "/OdysseyTech/authToken", sig, auth_headers)
+            print(f"printing token api response: {auth_response}")
+            if status != 201:
+                self.send_error_response(500, f"AuthToken API call failed: {auth_response.get('error')}")
+                return
+            print("✅ AuthToken response:", auth_response)
+    </code></pre>
+	<a href="/home" style="padding: 10px 20px; background-color: #007BFF; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">
+    Back
+</a>
+</body>
+</html>
