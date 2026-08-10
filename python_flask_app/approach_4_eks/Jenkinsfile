@@ -6,7 +6,6 @@ pipeline {
         IMAGE_TAG = "v4.${BUILD_NUMBER}"
         AWS_REGION = 'ap-south-1'
         EKS_CLUSTER_NAME = 'flask-2fa-eks'
-        DOCKERHUB_CREDENTIALS = credentials('DOCKER_HUB_CREDS')
     }
 
     options {
