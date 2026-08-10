@@ -5,7 +5,8 @@ pipeline {
         DOCKER_HUB_REPO = 'guruhemanth/python-transaction-flask-app'
         IMAGE_TAG = "v4.${BUILD_NUMBER}"
         AWS_REGION = 'ap-south-1'
-        EKS_CLUSTER_NAME = 'flask-2fa-eks'
+        EKS_CLUSTER_NAME = 'attractive-dubstep-sheepdog'
+        EKS_CONTEXT = 'arn:aws:eks:ap-south-1:524712963393:cluster/attractive-dubstep-sheepdog'
     }
 
     options {
@@ -137,22 +138,22 @@ pipeline {
                 dir("${env.PROJECT_DIR}") {
                     sh '''
                         export PATH=$PATH:/usr/local/bin
-                        echo "🔌 Connecting to Amazon EKS cluster ${EKS_CLUSTER_NAME} in region ${AWS_REGION}..."
-                        aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER_NAME}
+                        echo "🔌 Setting target context to ${EKS_CONTEXT}..."
+                        kubectl config use-context "${EKS_CONTEXT}"
                         
                         echo "📦 Deploying PostgreSQL Database to EKS..."
-                        kubectl apply -f postgres-deployment.yaml
+                        kubectl --context="${EKS_CONTEXT}" apply -f postgres-deployment.yaml
                         
                         echo "🚀 Updating and deploying Flask App to EKS..."
                         sed -i "s|image: guruhemanth/python-transaction-flask-app:.*|image: ${DOCKER_HUB_REPO}:${IMAGE_TAG}|g" deployment.yaml
-                        kubectl apply -f deployment.yaml
+                        kubectl --context="${EKS_CONTEXT}" apply -f deployment.yaml
                         
                         echo "⏳ Waiting for rollout status..."
-                        kubectl rollout status deployment/flask-app-deployment --timeout=120s
+                        kubectl --context="${EKS_CONTEXT}" rollout status deployment/flask-app-deployment --timeout=120s
                         
                         echo "✅ EKS Deployment Complete!"
-                        kubectl get pods -o wide
-                        kubectl get svc
+                        kubectl --context="${EKS_CONTEXT}" get pods -o wide
+                        kubectl --context="${EKS_CONTEXT}" get svc
                     '''
                 }
             }
