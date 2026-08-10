@@ -5,8 +5,8 @@ pipeline {
         DOCKER_HUB_REPO = 'guruhemanth/python-transaction-flask-app'
         IMAGE_TAG = "v4.${BUILD_NUMBER}"
         AWS_REGION = 'ap-south-1'
-        EKS_CLUSTER_NAME = 'attractive-dubstep-sheepdog'
-        EKS_CONTEXT = 'arn:aws:eks:ap-south-1:524712963393:cluster/attractive-dubstep-sheepdog'
+        EKS_CLUSTER_NAME = 'arn:aws:eks:ap-south-1:524712963393:cluster/flask-2fa-eks'
+        EKS_CONTEXT = 'arn:aws:eks:ap-south-1:524712963393:cluster/flask-2fa-eks'
     }
 
     options {
@@ -138,8 +138,8 @@ pipeline {
                 dir("${env.PROJECT_DIR}") {
                     sh '''
                         export PATH=$PATH:/usr/local/bin
-                        echo "🔌 Setting target context to ${EKS_CONTEXT}..."
-                        kubectl config use-context "${EKS_CONTEXT}"
+                        #echo "🔌 Setting target context to ${EKS_CONTEXT}..."
+                        #kubectl config use-context "${EKS_CONTEXT}"
                         
                         echo "📦 Deploying PostgreSQL Database to EKS..."
                         kubectl --context="${EKS_CONTEXT}" apply -f postgres-deployment.yaml
