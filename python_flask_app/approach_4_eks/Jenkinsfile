@@ -162,9 +162,7 @@ pipeline {
 
     post {
         always {
-            node {
-                cleanWs()
-            }
+            cleanWs deleteDirs: true, notFailBuild: true
         }
         success {
             echo "✅ EKS CI/CD Pipeline Executed Successfully!"

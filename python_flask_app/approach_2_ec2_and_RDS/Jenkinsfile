@@ -165,9 +165,7 @@ EOF
 
     post {
         always {
-            node {
-                cleanWs()
-            }
+            cleanWs deleteDirs: true, notFailBuild: true
         }
         success {
             echo "✅ CI/CD Pipeline Executed Successfully!"
