@@ -45,6 +45,10 @@ jobs:
         run: |
           pytest --verbose --cov=. --cov-report=xml --ignore=uploads
 
+      - name: Run Bandit SAST Scan
+        run: |
+          bandit -r . -x ./venv,./uploads,./test_app.py
+
   # ── STAGE 2: GitHub Advanced Security (GHAS) & SAST ─────────────────────────
   security-audit:
     name: 🛡️ GHAS & Security Scan
@@ -106,14 +110,11 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Push Image to Registry
-        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
-        with:
-          context: python_flask_app/approach_4_eks
-          push: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:latest
-            ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:${{ github.sha }}
+      - name: Tag and Push Scanned Image
+        run: |
+          docker tag ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:${{ github.sha }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:latest
 
   # ── STAGE 4: Continuous Deployment to AWS EKS ──────────────────────────────
   deploy-eks:
