@@ -58,12 +58,12 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Initialize CodeQL (GHAS SAST)
-        uses: github/codeql-action/init@4fa3aeddc86fb2e4d32614c274b7633c5dda94f7 # v3.25.10
+        uses: github/codeql-action/init@v3
         with:
           languages: python
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@4fa3aeddc86fb2e4d32614c274b7633c5dda94f7 # v3.25.10
+        uses: github/codeql-action/analyze@v3
         with:
           category: "/language:python"
 
