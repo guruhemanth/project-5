@@ -27,7 +27,7 @@ This repository captures the evolutionary maturity of hosting a production web s
 | **Approach 1** | `python_flask_app/approach_1_local` | Local Workstation / WSL | Local SQLite / Postgres | Rapid developer prototyping and local pytest execution. |
 | **Approach 2** | `python_flask_app/approach_2_ec2_and_RDS` | AWS EC2 (Compute) | Managed AWS RDS PostgreSQL | Decoupled compute from managed relational database tier. |
 | **Approach 3** | `python_flask_app/approach_3_ec2` | AWS EC2 (Single VM) | Co-located Postgres on VM | Monolithic single-node cloud deployment. |
-| **Approach 4 (Active)** | `python_flask_app/approach_4_eks` | **AWS EKS (Kubernetes)** | Containerized Stateful PostgreSQL | **Zero-downtime rolling updates, Horizontal Pod Autoscaling (HPA), and Terraform IaC.** |
+| **Approach 4 (Active)** | `python_flask_app/approach_4_eks` | **AWS EKS (Kubernetes)** | Containerized Stateful PostgreSQL (via PVC `postgres-pvc`) | **Single-replica deployment with Recreate strategy, persistent storage, and Terraform IaC.** |
 
 ---
 
@@ -36,12 +36,12 @@ This repository captures the evolutionary maturity of hosting a production web s
 | Pipeline Attribute | Legacy Jenkins (`Jenkinsfile`) | Modern GitHub Actions (`.github/workflows/eks-ci-cd.yml`) |
 | :--- | :--- | :--- |
 | **Hosting Model** | Self-hosted Jenkins Controller / Worker node | Ephemeral GitHub-Hosted Cloud Runners (`ubuntu-latest`) |
-| **Trigger Events** | Webhook / SCM Polling | Git `push`, `pull_request` (with path filtering), and manual `workflow_dispatch` |
+| **Trigger Events** | Webhook / SCM Polling | Git `push`, `pull_request` on `[main, master]`, and manual `workflow_dispatch` |
 | **Linting & Quality** | Flake8 syntax checks | Flake8 with automated inline GitHub annotations |
-| **Automated Testing** | Pytest with in-memory SQLite isolation | Pytest with coverage XML artifact reporting |
+| **Automated Testing** | Pytest with in-memory SQLite isolation | Pytest with coverage XML generation |
 | **Security Auditing** | Bandit + `pip-audit` | **Bandit + `pip-audit` + GitHub CodeQL (GHAS) + Trivy Container Scan** |
 | **Container Build** | Docker CLI build & push | `docker/setup-buildx-action` + multi-tagging with Git SHA |
-| **Target Deployment** | Local agent kubeconfig | **Passwordless OIDC** ➔ `kubectl rollout status` verification |
+| **Target Deployment** | Local agent kubeconfig | AWS Secret Keys (`AWS_ACCESS_KEY_ID`) ➔ `kubectl rollout status` verification |
 
 ---
 

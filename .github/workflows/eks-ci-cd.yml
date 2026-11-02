@@ -9,8 +9,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write # Required for CodeQL / GHAS SARIF upload
-  id-token: write        # Required for AWS OIDC authentication
 
 jobs:
   # ── STAGE 1: Code Quality & Testing ─────────────────────────────────────────
@@ -22,10 +20,10 @@ jobs:
         working-directory: python_flask_app/approach_4_eks
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -42,32 +40,37 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Run Pytest with Coverage
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
         run: |
-          pytest --verbose --cov=. --cov-report=xml || true
+          pytest --verbose --cov=. --cov-report=xml
 
   # ── STAGE 2: GitHub Advanced Security (GHAS) & SAST ─────────────────────────
   security-audit:
     name: 🛡️ GHAS & Security Scan
     runs-on: ubuntu-latest
     needs: test-and-lint
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Initialize CodeQL (GHAS SAST)
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@4fa3aeddc86fb2e4d32614c274b7633c5dda94f7 # v3.25.10
         with:
           languages: python
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@4fa3aeddc86fb2e4d32614c274b7633c5dda94f7 # v3.25.10
         with:
           category: "/language:python"
 
       - name: Dependency Vulnerability Audit (pip-audit)
         run: |
           pip install pip-audit
-          pip-audit -r python_flask_app/approach_4_eks/requirements.txt || true
+          pip-audit -r python_flask_app/approach_4_eks/requirements.txt
 
   # ── STAGE 3: Build & Container Security ────────────────────────────────────
   build-and-scan:
@@ -77,34 +80,34 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@d70bba72b1f3edb60f9ba66a4265d974167ea862 # v3.3.0
 
       - name: Build Local Image for Vulnerability Scan
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@2cdde495ecd36ae000282964862e086ae5f0cc71 # v5.3.0
         with:
           context: python_flask_app/approach_4_eks
           load: true
           tags: ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:${{ github.sha }}
 
       - name: Run Trivy Container Vulnerability Scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.28.0
         with:
           image-ref: ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:${{ github.sha }}
           format: 'table'
-          exit-code: '0'
+          exit-code: '1'
           severity: 'CRITICAL,HIGH'
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@e6313fa6f9e64d7560dd47144c33039542a34610 # v3.1.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Push Image to Registry
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@2cdde495ecd36ae000282964862e086ae5f0cc71 # v5.3.0
         with:
           context: python_flask_app/approach_4_eks
           push: true
@@ -120,10 +123,10 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@e3ddf4a3c70b8976c6414bb4503c4aac0406d8a6 # v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -136,7 +139,8 @@ jobs:
       - name: Deploy Kubernetes Manifests
         run: |
           cd python_flask_app/approach_4_eks
+          sed -i "s|image: guruhemanth/python-transaction-flask-app:.*|image: ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:${{ github.sha }}|g" deployment.yaml
           kubectl apply -f postgres-deployment.yaml
           kubectl apply -f deployment.yaml
-          kubectl set image deployment/flask-transaction-app flask-transaction-app=${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:${{ github.sha }}
-          kubectl rollout status deployment/flask-transaction-app --timeout=120s
+          kubectl set image deployment/flask-app-deployment flask-container=${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:${{ github.sha }}
+          kubectl rollout status deployment/flask-app-deployment --timeout=120s
