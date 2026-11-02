@@ -58,12 +58,12 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Initialize CodeQL (GHAS SAST)
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@4c50b6f6fd9dc6fe03111c2d045c8be2a724cce1 # v3.28.11
         with:
           languages: python
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@4c50b6f6fd9dc6fe03111c2d045c8be2a724cce1 # v3.28.11
         with:
           category: "/language:python"
 
@@ -83,17 +83,17 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d70bba72b1f3edb60f9ba66a4265d974167ea862 # v3.3.0
+        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
 
       - name: Build Local Image for Vulnerability Scan
-        uses: docker/build-push-action@2cdde495ecd36ae000282964862e086ae5f0cc71 # v5.3.0
+        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
         with:
           context: python_flask_app/approach_4_eks
           load: true
           tags: ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:${{ github.sha }}
 
       - name: Run Trivy Container Vulnerability Scan
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.28.0
+        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
         with:
           image-ref: ${{ secrets.DOCKER_USERNAME }}/python-transaction-flask-app:${{ github.sha }}
           format: 'table'
@@ -101,13 +101,13 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@e6313fa6f9e64d7560dd47144c33039542a34610 # v3.1.0
+        uses: docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20 # v3.1.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Push Image to Registry
-        uses: docker/build-push-action@2cdde495ecd36ae000282964862e086ae5f0cc71 # v5.3.0
+        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
         with:
           context: python_flask_app/approach_4_eks
           push: true
@@ -126,7 +126,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@e3ddf4a3c70b8976c6414bb4503c4aac0406d8a6 # v4.0.2
+        uses: aws-actions/configure-aws-credentials@5579c002bb4778aa43395ef1df492868a9a1c83f # v4.0.2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
