@@ -53,7 +53,7 @@ This repository captures the evolutionary maturity of hosting a production web s
 | **Semantic SAST** | **GitHub CodeQL** | Taint / Data Flow | Deep data-flow analysis tracing untrusted user input from HTTP endpoints directly to internal sinks. |
 | **Dependencies (SCA)** | **`pip-audit`** | Vulnerability Scan | Cross-references installed packages against PyPA and Google OSV databases for known CVEs. |
 | **Container Security** | **Trivy** | Image Vulnerability | Scans container OS layers (Alpine/Debian CVEs) before pushing to Docker Hub; fails on `HIGH`/`CRITICAL`. |
-| **Secrets & Credentials** | **GHAS Push Protection** | Pre-receive Hook | Rejects `git push` if AWS keys, database passwords, or private API tokens are detected in commit history. |
+| **Secrets & Credentials** | **GHAS Push Protection** | Push-time scan | Blocks `git push` when supported secret patterns are detected in the commits being pushed. Historical scanning is handled separately by Secret Scanning. |
 
 ---
 
