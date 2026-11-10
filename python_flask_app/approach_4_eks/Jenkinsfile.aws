@@ -1,0 +1,151 @@
+pipeline {
+    agent any
+
+    environment {
+        PROJECT_DIR        = 'python_flask_app/approach_4_eks'
+        DOCKER_HUB_REPO    = 'guruhemanth/python-transaction-flask-app'
+        IMAGE_TAG          = "v4-aws.${BUILD_NUMBER}"
+        
+        // AWS EKS Configuration
+        AWS_REGION         = 'ap-south-1'
+        EKS_CLUSTER_NAME   = 'flask-2fa-eks'
+        AWS_CREDENTIALS_ID = 'aws-jenkins-credentials-id' // Configured in Jenkins Credentials
+    }
+
+    options {
+        timeout(time: 25, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        timestamps()
+    }
+
+    stages {
+        // ── Stage 0: System Dependencies Check ─────────────────────────────
+        stage('0. Setup Linux Dependencies') {
+            steps {
+                sh '''
+                    echo "🔍 Verifying required CLIs: docker, kubectl, aws..."
+                    command -v docker >/dev/null 2>&1 || { echo "❌ Docker missing"; exit 1; }
+                    command -v kubectl >/dev/null 2>&1 || { echo "❌ Kubectl missing"; exit 1; }
+                    command -v aws >/dev/null 2>&1 || { echo "❌ AWS CLI missing"; exit 1; }
+                    echo "✅ System dependencies verified!"
+                '''
+            }
+        }
+
+        // ── Stage 1: Checkout SCM ──────────────────────────────────────────
+        stage('1. Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        // ── Stage 2: Linting & Unit Testing ────────────────────────────────
+        stage('2. Test & Lint (Pytest + Flake8)') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        python3 -m venv venv || python3 -m venv --system-site-packages venv
+                        . venv/bin/activate
+                        pip install --upgrade pip
+                        pip install -r requirements-dev.txt
+                        flake8 server_xorkeesign.py models.py routes/auth.py --statistics
+                        DATABASE_URL="sqlite:///:memory:" pytest --verbose
+                    '''
+                }
+            }
+        }
+
+        // ── Stage 3: Security Audits (SAST & SCA) ──────────────────────────
+        stage('3. Security Audits (Bandit & pip-audit)') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        . venv/bin/activate
+                        bandit -r . -x ./venv,./test_app.py
+                        pip-audit
+                    '''
+                }
+            }
+        }
+
+        // ── Stage 4: Docker Build & Security Scan (Trivy) ──────────────────
+        stage('4. Docker Build & Trivy Scan') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        echo "🐳 Building Docker image ${DOCKER_HUB_REPO}:${IMAGE_TAG}..."
+                        docker build -t ${DOCKER_HUB_REPO}:${IMAGE_TAG} .
+                        
+                        echo "🛡️ Scanning Container image with Trivy..."
+                        docker run --rm \
+                            -v /var/run/docker.sock:/var/run/docker.sock \
+                            aquasec/trivy:latest image \
+                            --severity HIGH,CRITICAL \
+                            --exit-code 0 \
+                            ${DOCKER_HUB_REPO}:${IMAGE_TAG}
+                    '''
+                }
+            }
+        }
+
+        // ── Stage 5: Push to Docker Hub ───────────────────────────────────
+        stage('5. Push Image to Docker Hub') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials-id', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh '''
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                            docker tag ${DOCKER_HUB_REPO}:${IMAGE_TAG} ${DOCKER_HUB_REPO}:latest
+                            docker push ${DOCKER_HUB_REPO}:${IMAGE_TAG}
+                            docker push ${DOCKER_HUB_REPO}:latest
+                        '''
+                    }
+                }
+            }
+        }
+
+        // ── Stage 6: Deploy to Amazon EKS ──────────────────────────────────
+        stage('6. Deploy to Amazon EKS') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: env.AWS_CREDENTIALS_ID
+                    ]]) {
+                        sh '''
+                            echo "☁️ Authenticating with AWS EKS in ${AWS_REGION}..."
+                            aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER_NAME} --alias eks-cluster
+                            
+                            echo "📦 Deploying Postgres to EKS..."
+                            kubectl --context=eks-cluster apply -f postgres-deployment.yaml
+                            
+                            echo "🚀 Updating deployment image to ${DOCKER_HUB_REPO}:${IMAGE_TAG}..."
+                            sed -i "s|image: guruhemanth/python-transaction-flask-app:.*|image: ${DOCKER_HUB_REPO}:${IMAGE_TAG}|g" deployment.yaml
+                            kubectl --context=eks-cluster apply -f deployment.yaml
+                            
+                            echo "⏳ Waiting for EKS rollout status..."
+                            kubectl --context=eks-cluster rollout status deployment/flask-app-deployment --timeout=180s
+                            
+                            echo "✅ AWS EKS Deployment Verified!"
+                            kubectl --context=eks-cluster get pods -o wide
+                            kubectl --context=eks-cluster get svc
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+            echo "🧹 Workspace cleaned up."
+        }
+        success {
+            echo "🎉 AWS EKS Pipeline Completed Successfully!"
+        }
+        failure {
+            echo "🚨 AWS EKS Pipeline Failed! Check build logs."
+        }
+    }
+}
