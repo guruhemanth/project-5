@@ -1,3 +1,8 @@
+import os
+
+# Force in-memory SQLite isolation for unit tests
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
 import pytest
 from server_xorkeesign import app
 from models import db

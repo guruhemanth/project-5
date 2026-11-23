@@ -1,0 +1,150 @@
+# ==============================================================================
+# Complete Example: PostgreSQL Read/Write Split Architecture in Kubernetes
+# 1. Primary Service (Writes)
+# 2. Replica Service (Reads)
+# 3. Headless Service (Direct Pod Discovery for WAL Replication)
+# 4. StatefulSet with 2 Pods (postgres-0 & postgres-1) + Individual PVCs
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. PRIMARY SERVICE (For INSERT, UPDATE, DELETE)
+# Routes exclusively to whichever pod currently carries the label 'role: primary'
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-primary
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: primary
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  selector:
+    app: postgres
+    role: primary       # <--- ONLY forwards to the current Read-Write Primary!
+---
+# ------------------------------------------------------------------------------
+# 2. REPLICA SERVICE (For SELECT queries)
+# Load balances read-only queries across standby replicas
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-replicas
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/component: replica
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  selector:
+    app: postgres
+    role: replica       # <--- ONLY forwards to Read-Only Standby pods!
+---
+# ------------------------------------------------------------------------------
+# 3. HEADLESS SERVICE (Internal Cluster DNS for StatefulSet Pod Discovery)
+# Gives stable network identities: postgres-0.postgres-nodes, postgres-1.postgres-nodes
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-nodes
+  labels:
+    app.kubernetes.io/name: postgres
+spec:
+  clusterIP: None       # Headless Service
+  ports:
+    - port: 5432
+      name: postgres
+  selector:
+    app: postgres
+---
+# ------------------------------------------------------------------------------
+# 4. POSTGRESQL STATEFULSET (2 Replicas with dynamic volume attachments)
+# ------------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  serviceName: postgres-nodes
+  replicas: 2           # <--- 2 Pods: postgres-0 (Primary) and postgres-1 (Replica)
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        # In automated clustering (e.g. Patroni), this label is updated dynamically.
+        # By convention in static setups, postgres-0 boots as primary.
+        role: primary
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: "my_flask_db"
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "Guru@123"
+            - name: PGDATA
+              value: "/var/lib/postgresql/data/pgdata"
+            # Configuration allowing streaming replication connections
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "scram-sha-256"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 20
+            periodSeconds: 15
+
+  # ----------------------------------------------------------------------------
+  # DYNAMIC STORAGE TEMPLATE: Creates a SEPARATE disk for each pod!
+  # - Pod 0 gets: data-postgres-0 (Managed Disk 1)
+  # - Pod 1 gets: data-postgres-1 (Managed Disk 2)
+  # ----------------------------------------------------------------------------
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
