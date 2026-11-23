@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi File Upload</title>
+
+  <style>
+    body {
+      background: linear-gradient(to right, #74ebd5, #9face6);
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .login-box {
+      background: white;
+      padding: 55px 45px;
+      border-radius: 14px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.18);
+      width: 420px;
+      text-align: center;
+      animation: fadeIn 0.6s ease-in-out;
+    }
+
+    h2 {
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .subtext {
+      font-size: 14px;
+      color: #777;
+      margin-bottom: 20px;
+    }
+
+    .file-group {
+      position: relative;
+      margin-bottom: 15px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 2px dashed #cfd6e4;
+      background: #f9fbff;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    input[type="file"]:hover {
+      border-color: #4b6cb7;
+      background: #eef3ff;
+    }
+
+    .remove-btn {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      background: #ff4d4d;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .add-btn {
+      background: #eef3ff;
+      color: #4b6cb7;
+      border: 2px dashed #4b6cb7;
+      padding: 10px;
+      width: 100%;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: 0.3s;
+    }
+
+    .add-btn:hover {
+      background: #dfe8ff;
+    }
+
+    input[type="submit"] {
+      margin-top: 25px;
+      background: linear-gradient(to right, #4b6cb7, #182848);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      width: 100%;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+	/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.spinner {
+  width: 55px;
+  height: 55px;
+  border: 6px solid #ddd;
+  border-top: 6px solid #4b6cb7;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  margin-top: 15px;
+  font-size: 15px;
+  color: #333;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+  </style>
+</head>
+
+<body>
+
+  <div class="login-box">
+    <h2>Upload Files</h2>
+    <p class="subtext">Add multiple file sections if needed</p>
+
+    <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
+
+      <div id="fileContainer">
+        <div class="file-group">
+          <input type="file" name="filename[]" required />
+        </div>
+      </div>
+	  <input type="hidden" name="token" value="abc123">
+
+      <button type="button" class="add-btn" onclick="addFileSection()">
+        + Add Another File
+      </button>
+
+      <input type="submit" value="Sign" />
+    </form>
+  </div>
+	<div class="loading-overlay" id="loading">
+  <div>
+    <div class="spinner"></div>
+    <div class="loading-text">Signing...</div>
+  </div>
+</div>
+  <script>
+document.getElementById("uploadForm").addEventListener("submit", function () {
+  document.getElementById("loading").style.display = "flex";
+});
+
+    function addFileSection() {
+      const container = document.getElementById("fileContainer");
+
+      const div = document.createElement("div");
+      div.className = "file-group";
+
+      div.innerHTML = `
+        <input type="file" name="filename[]" required />
+        <button type="button" class="remove-btn" onclick="this.parentElement.remove()">×</button>
+      `;
+
+      container.appendChild(div);
+    }
+  </script>
+
+</body>
+</html>

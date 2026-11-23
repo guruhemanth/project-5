@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project-5: AWS EKS Infrastructure Architecture</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #060c18;
+      background-image:
+        radial-gradient(ellipse at 20% 0%, #0f2d5e 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 0%, #0d3b2e 0%, transparent 55%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 36px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── HEADER ── */
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #38bdf8, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+    header p {
+      color: #64748b;
+      font-size: 14px;
+      max-width: 680px;
+      line-height: 1.6;
+    }
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 14px;
+    }
+    .badge {
+      background: #0f172a;
+      border: 1px solid #1e3a5f;
+      color: #7dd3fc;
+      font-size: 11.5px;
+      padding: 3px 11px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    /* ── MAIN CANVAS ── */
+    .canvas {
+      width: 100%;
+      max-width: 1180px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── PANELS ── */
+    .aws-cloud {
+      border: 2px solid #d97706;
+      border-radius: 20px;
+      background: rgba(217, 119, 6, 0.04);
+      padding: 24px;
+      position: relative;
+    }
+    .aws-cloud > .panel-label {
+      position: absolute;
+      top: -13px;
+      left: 20px;
+      background: #1a1000;
+      border: 1px solid #d97706;
+      color: #fbbf24;
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .vpc-box {
+      border: 2px dashed #0ea5e9;
+      border-radius: 16px;
+      background: rgba(14, 165, 233, 0.03);
+      padding: 20px;
+      position: relative;
+    }
+    .vpc-box > .panel-label {
+      position: absolute;
+      top: -12px;
+      left: 18px;
+      background: #060c18;
+      border: 1px solid #0ea5e9;
+      color: #38bdf8;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 6px;
+    }
+
+    .az-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .az-box {
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 16px;
+      position: relative;
+      background: rgba(30, 41, 59, 0.5);
+    }
+    .az-box > .panel-label {
+      position: absolute;
+      top: -11px;
+      left: 14px;
+      background: #111827;
+      border: 1px solid #475569;
+      color: #94a3b8;
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 1px 8px;
+      border-radius: 5px;
+    }
+
+    /* ── NODES ── */
+    .node-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .node {
+      border: 1.5px solid;
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      background: rgba(0,0,0,0.3);
+    }
+    .node .icon {
+      font-size: 22px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .node .info strong {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    .node .info span {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    /* Color themes */
+    .node-blue   { border-color: #0ea5e9; }
+    .node-green  { border-color: #10b981; }
+    .node-purple { border-color: #8b5cf6; }
+    .node-pink   { border-color: #f472b6; }
+    .node-amber  { border-color: #f59e0b; }
+    .node-red    { border-color: #f43f5e; }
+    .node-teal   { border-color: #14b8a6; }
+    .node-gray   { border-color: #64748b; }
+
+    /* ── EKS CLUSTER BOX ── */
+    .eks-box {
+      border: 2px solid #10b981;
+      border-radius: 14px;
+      padding: 18px;
+      position: relative;
+      background: rgba(16, 185, 129, 0.03);
+      margin-top: 16px;
+    }
+    .eks-box > .panel-label {
+      position: absolute;
+      top: -12px;
+      left: 16px;
+      background: #060c18;
+      border: 1px solid #10b981;
+      color: #34d399;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 6px;
+    }
+
+    /* ── K8S WORKLOADS ── */
+    .k8s-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .k8s-workload {
+      border: 1px dashed;
+      border-radius: 10px;
+      padding: 12px;
+      position: relative;
+    }
+    .k8s-workload > .wl-label {
+      position: absolute;
+      top: -10px;
+      left: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+    .wl-flask { border-color: #38bdf8; }
+    .wl-flask .wl-label { background: #0c4a6e; color: #7dd3fc; }
+    .wl-postgres { border-color: #818cf8; }
+    .wl-postgres .wl-label { background: #2e1065; color: #c4b5fd; }
+
+    /* ── IAM PANEL ── */
+    .iam-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 20px;
+    }
+    .iam-box {
+      border: 1px solid #78716c;
+      border-radius: 12px;
+      padding: 14px;
+      background: rgba(0,0,0,0.3);
+    }
+    .iam-box h3 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #fbbf24;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .iam-policy {
+      font-size: 11px;
+      color: #94a3b8;
+      padding: 3px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .iam-policy:last-child { border-bottom: none; }
+    .policy-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+      flex-shrink: 0;
+    }
+
+    /* ── ARROWS (SVG) ── */
+    .arrow-section {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 2px 0;
+      color: #475569;
+      font-size: 12px;
+    }
+    .arrow-section .arrow-line {
+      flex: 1;
+      height: 1px;
+      border-top: 1.5px dashed #334155;
+    }
+    .arrow-label {
+      font-size: 11px;
+      background: #111827;
+      border: 1px solid #334155;
+      padding: 2px 10px;
+      border-radius: 20px;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
+    /* ── EXTERNAL SERVICES ── */
+    .external-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .ext-card {
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px;
+      background: #0a1120;
+      text-align: center;
+    }
+    .ext-card .ext-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+    .ext-card strong { display: block; font-size: 13px; color: #e2e8f0; }
+    .ext-card span { font-size: 11px; color: #64748b; }
+
+    /* ── FLOW ARROWS (connecting sections) ── */
+    .flow-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      margin: 4px 0;
+    }
+    .flow-connector .flow-arrow {
+      color: #38bdf8;
+      font-size: 22px;
+      line-height: 1;
+    }
+    .flow-connector .flow-label {
+      font-size: 11px;
+      color: #475569;
+      background: #0a1120;
+      border: 1px solid #1e293b;
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+
+    /* ── SECTION TITLES ── */
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      margin-top: 4px;
+    }
+
+    /* ── OUTPUTS TABLE ── */
+    .outputs-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .outputs-table th {
+      background: #0f172a;
+      color: #38bdf8;
+      text-align: left;
+      padding: 8px 12px;
+      font-weight: 600;
+      border-bottom: 1px solid #1e293b;
+    }
+    .outputs-table td {
+      padding: 7px 12px;
+      border-bottom: 1px solid #1e293b;
+      color: #94a3b8;
+      vertical-align: top;
+    }
+    .outputs-table td:first-child { color: #c084fc; font-weight: 600; }
+    .outputs-table td code {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #34d399;
+    }
+    .outputs-table tr:last-child td { border-bottom: none; }
+
+    .card {
+      background: #0d1526;
+      border: 1px solid #1e293b;
+      border-radius: 14px;
+      padding: 18px 20px;
+      overflow: hidden;
+    }
+
+    @media (max-width: 700px) {
+      .az-row, .k8s-row, .iam-row, .external-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>☁️ Project-5 — AWS EKS Infrastructure Architecture</h1>
+  <p>Python Flask Transaction & Digital Signing Service — Terraform-provisioned Amazon EKS in <strong>ap-south-1 (Mumbai)</strong></p>
+  <div class="badge-row">
+    <span class="badge">🌍 Region: ap-south-1</span>
+    <span class="badge">☸️ EKS Cluster: flask-2fa-eks</span>
+    <span class="badge">🖥️ Nodes: t3.micro × 1–3</span>
+    <span class="badge">🌐 VPC: 10.0.0.0/16</span>
+    <span class="badge">🔐 IAM Roles: Cluster + Node</span>
+  </div>
+</header>
+
+<div class="canvas">
+
+  <!-- ═══ INTERNET ENTRY POINT ═══ -->
+  <div class="card">
+    <div class="section-title">Entry Point</div>
+    <div class="node-grid">
+      <div class="node node-amber">
+        <div class="icon">🌐</div>
+        <div class="info">
+          <strong>Internet / Client</strong>
+          <span>End users, API callers, kubectl<br/>GitHub Actions CI/CD</span>
+        </div>
+      </div>
+      <div class="node node-blue">
+        <div class="icon">⚖️</div>
+        <div class="info">
+          <strong>AWS Network Load Balancer</strong>
+          <span>Auto-provisioned by Kubernetes Service<br/>type: LoadBalancer (port 8090)</span>
+        </div>
+      </div>
+      <div class="node node-teal">
+        <div class="icon">🔑</div>
+        <div class="info">
+          <strong>EKS Public API Endpoint</strong>
+          <span>endpoint_public_access: true<br/>kubectl / AWS SDK access</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-connector">
+    <div class="flow-arrow">↓</div>
+    <div class="flow-label">Routes into AWS VPC</div>
+  </div>
+
+  <!-- ═══ AWS CLOUD ═══ -->
+  <div class="aws-cloud">
+    <div class="panel-label">☁️ AWS CLOUD — ap-south-1 (Mumbai)</div>
+
+    <!-- VPC -->
+    <div class="vpc-box">
+      <div class="panel-label">🔷 VPC: flask-2fa-eks-vpc — 10.0.0.0/16 &nbsp;|&nbsp; DNS Support & Hostnames Enabled</div>
+
+      <!-- Internet Gateway -->
+      <div style="margin-top:12px">
+        <div class="node node-blue" style="max-width:340px">
+          <div class="icon">🚪</div>
+          <div class="info">
+            <strong>Internet Gateway (IGW)</strong>
+            <span>flask-2fa-eks-igw — attached to VPC<br/>Public Route: 0.0.0.0/0 → IGW</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two AZs -->
+      <div class="az-row">
+        <!-- AZ 1 -->
+        <div class="az-box">
+          <div class="panel-label">📍 ap-south-1a</div>
+          <div class="node-grid" style="margin-top:14px">
+            <div class="node node-blue">
+              <div class="icon">📡</div>
+              <div class="info">
+                <strong>Public Subnet 1</strong>
+                <span>10.0.1.0/24<br/>map_public_ip: true<br/>k8s.io/role/elb: 1</span>
+              </div>
+            </div>
+            <div class="node node-green">
+              <div class="icon">🖥️</div>
+              <div class="info">
+                <strong>Worker Node (t3.micro)</strong>
+                <span>EKS Managed Node Group<br/>2 vCPU, 1GB RAM<br/>EC2 + EBS Volume</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AZ 2 -->
+        <div class="az-box">
+          <div class="panel-label">📍 ap-south-1b</div>
+          <div class="node-grid" style="margin-top:14px">
+            <div class="node node-blue">
+              <div class="icon">📡</div>
+              <div class="info">
+                <strong>Public Subnet 2</strong>
+                <span>10.0.2.0/24<br/>map_public_ip: true<br/>k8s.io/role/elb: 1</span>
+              </div>
+            </div>
+            <div class="node node-green">
+              <div class="icon">🖥️</div>
+              <div class="info">
+                <strong>Worker Node (t3.micro)</strong>
+                <span>EKS Managed Node Group<br/>Desired: 2 | Min: 1 | Max: 3</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EKS Cluster -->
+      <div class="eks-box">
+        <div class="panel-label">☸️ Amazon EKS Cluster: flask-2fa-eks &nbsp;|&nbsp; Kubernetes v1.27+</div>
+
+        <!-- Control plane note -->
+        <div class="node node-teal" style="margin-top:12px; max-width:100%">
+          <div class="icon">🧠</div>
+          <div class="info">
+            <strong>EKS Managed Control Plane (AWS Owned)</strong>
+            <span>API Server, etcd, Scheduler, Controller Manager — SLA 99.95% — Multi-AZ redundancy managed by AWS automatically</span>
+          </div>
+        </div>
+
+        <!-- K8s workloads -->
+        <div class="k8s-row">
+          <!-- Flask Deployment -->
+          <div class="k8s-workload wl-flask">
+            <div class="wl-label">🐍 FLASK DEPLOYMENT</div>
+            <div class="node-grid" style="margin-top:14px">
+              <div class="node node-blue">
+                <div class="icon">📦</div>
+                <div class="info">
+                  <strong>Pod: flask-app-deployment</strong>
+                  <span>Image: guruhemanth/<br/>python-transaction-flask-app:latest<br/>Port: 8090 | Strategy: Recreate</span>
+                </div>
+              </div>
+              <div class="node node-teal">
+                <div class="icon">🔌</div>
+                <div class="info">
+                  <strong>Service: flask-app-service</strong>
+                  <span>Type: LoadBalancer<br/>Port: 8090<br/>NodePort: 30090</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Postgres StatefulSet -->
+          <div class="k8s-workload wl-postgres">
+            <div class="wl-label">🐘 POSTGRES DEPLOYMENT</div>
+            <div class="node-grid" style="margin-top:14px">
+              <div class="node node-purple">
+                <div class="icon">🗄️</div>
+                <div class="info">
+                  <strong>Pod: postgres-deployment</strong>
+                  <span>Image: postgres:15-alpine<br/>Port: 5432 | PGDATA configured<br/>Strategy: Recreate (EBS safe)</span>
+                </div>
+              </div>
+              <div class="node node-pink">
+                <div class="icon">💾</div>
+                <div class="info">
+                  <strong>PVC: postgres-pvc</strong>
+                  <span>AWS EBS gp2/gp3 Volume<br/>ReadWriteOnce: 1Gi<br/>Persistent across pod restarts</span>
+                </div>
+              </div>
+              <div class="node node-gray">
+                <div class="icon">🔗</div>
+                <div class="info">
+                  <strong>Service: postgres-service</strong>
+                  <span>Type: ClusterIP<br/>Port: 5432<br/>DNS: postgres-service</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /eks-box -->
+
+    </div><!-- /vpc-box -->
+
+    <!-- IAM ROLES -->
+    <div class="section-title" style="margin-top:22px">IAM Identity & Access Management</div>
+    <div class="iam-row">
+      <div class="iam-box">
+        <h3>🛡️ EKS Cluster IAM Role</h3>
+        <div class="iam-policy"><span class="policy-dot"></span> AmazonEKSClusterPolicy</div>
+        <div class="iam-policy"><span class="policy-dot"></span> AmazonEKSVPCResourceController</div>
+        <div class="iam-policy" style="color:#64748b; font-style:italic; border:0; margin-top:4px; font-size:10.5px">
+          Assumed by: eks.amazonaws.com (control plane)
+        </div>
+      </div>
+      <div class="iam-box">
+        <h3>🛡️ EKS Worker Node IAM Role</h3>
+        <div class="iam-policy"><span class="policy-dot"></span> AmazonEKSWorkerNodePolicy</div>
+        <div class="iam-policy"><span class="policy-dot"></span> AmazonEKS_CNI_Policy</div>
+        <div class="iam-policy"><span class="policy-dot"></span> AmazonEC2ContainerRegistryReadOnly</div>
+        <div class="iam-policy" style="color:#64748b; font-style:italic; border:0; margin-top:4px; font-size:10.5px">
+          Assumed by: ec2.amazonaws.com (worker nodes)
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /aws-cloud -->
+
+  <!-- ═══ EXTERNAL SERVICES ═══ -->
+  <div class="flow-connector">
+    <div class="flow-arrow">↕</div>
+    <div class="flow-label">Flask App calls external services</div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">External Services & Integrations</div>
+    <div class="external-row">
+      <div class="ext-card">
+        <span class="ext-icon">🔐</span>
+        <strong>Xorkee Digital Signing API</strong>
+        <span>External SaaS — ECC / RSA file signing & verification</span>
+      </div>
+      <div class="ext-card">
+        <span class="ext-icon">🐳</span>
+        <strong>Docker Hub Registry</strong>
+        <span>guruhemanth/<br/>python-transaction-flask-app:&lt;sha&gt;</span>
+      </div>
+      <div class="ext-card">
+        <span class="ext-icon">🐙</span>
+        <strong>GitHub Actions OIDC</strong>
+        <span>Zero-secret IAM federation<br/>aws-actions/configure-aws-credentials</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TERRAFORM OUTPUTS ═══ -->
+  <div class="card">
+    <div class="section-title">Terraform Outputs (from outputs.tf)</div>
+    <table class="outputs-table">
+      <thead>
+        <tr>
+          <th>Output Name</th>
+          <th>Value</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>cluster_name</td>
+          <td><code>flask-2fa-eks</code></td>
+          <td>Amazon EKS Cluster Name</td>
+        </tr>
+        <tr>
+          <td>cluster_endpoint</td>
+          <td><code>https://&lt;aws-generated&gt;.gr7.ap-south-1.eks.amazonaws.com</code></td>
+          <td>EKS API Server Endpoint (Public)</td>
+        </tr>
+        <tr>
+          <td>cluster_arn</td>
+          <td><code>arn:aws:eks:ap-south-1:&lt;acct&gt;:cluster/flask-2fa-eks</code></td>
+          <td>Unique ARN for the EKS cluster</td>
+        </tr>
+        <tr>
+          <td>configure_kubectl_command</td>
+          <td><code>aws eks update-kubeconfig --region ap-south-1 --name flask-2fa-eks</code></td>
+          <td>Local kubeconfig setup command</td>
+        </tr>
+        <tr>
+          <td>vpc_id</td>
+          <td><code>vpc-xxxxxxxxxxxxxxxxx</code></td>
+          <td>VPC ID hosting the cluster</td>
+        </tr>
+        <tr>
+          <td>node_group_status</td>
+          <td><code>ACTIVE</code></td>
+          <td>Managed Node Group readiness status</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /canvas -->
+</body>
+</html>

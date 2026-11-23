@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project-5: Azure AKS Infrastructure Architecture</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #060a18;
+      background-image:
+        radial-gradient(ellipse at 20% 0%, #0d1f4a 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 0%, #0a1a3a 0%, transparent 55%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 36px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+    header p {
+      color: #64748b;
+      font-size: 14px;
+      max-width: 680px;
+      line-height: 1.6;
+    }
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 14px;
+    }
+    .badge {
+      background: #0f172a;
+      border: 1px solid #1e3a8a;
+      color: #93c5fd;
+      font-size: 11.5px;
+      padding: 3px 11px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .canvas {
+      width: 100%;
+      max-width: 1180px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── AZURE CLOUD WRAPPER ── */
+    .azure-cloud {
+      border: 2px solid #3b82f6;
+      border-radius: 20px;
+      background: rgba(59, 130, 246, 0.03);
+      padding: 24px;
+      position: relative;
+    }
+    .azure-cloud > .panel-label {
+      position: absolute;
+      top: -13px;
+      left: 20px;
+      background: #060a18;
+      border: 1px solid #3b82f6;
+      color: #60a5fa;
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── SHARED INFRA ── */
+    .shared-box {
+      border: 1px solid #334155;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 16px 18px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .shared-box > .panel-label {
+      position: absolute;
+      top: -11px;
+      left: 14px;
+      background: #060a18;
+      border: 1px solid #475569;
+      color: #94a3b8;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 1px 8px;
+      border-radius: 5px;
+    }
+
+    /* ── ENV GRID ── */
+    .env-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    /* ── ENV BOX ── */
+    .env-box {
+      border: 2px solid;
+      border-radius: 16px;
+      padding: 20px;
+      position: relative;
+    }
+    .env-box > .panel-label {
+      position: absolute;
+      top: -13px;
+      left: 16px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 6px;
+    }
+    .env-qa {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.03);
+    }
+    .env-qa > .panel-label { background: #0a0800; border: 1px solid #f59e0b; color: #fbbf24; }
+
+    .env-prod {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.03);
+    }
+    .env-prod > .panel-label { background: #001a0d; border: 1px solid #10b981; color: #34d399; }
+
+    /* ── VNET BOX ── */
+    .vnet-box {
+      border: 1.5px dashed #334155;
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 14px;
+      position: relative;
+    }
+    .vnet-box > .panel-label {
+      position: absolute;
+      top: -10px;
+      left: 10px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 4px;
+    }
+
+    /* ── AKS CLUSTER BOX ── */
+    .aks-box {
+      border: 1.5px solid;
+      border-radius: 11px;
+      padding: 14px;
+      margin-top: 12px;
+      position: relative;
+    }
+    .aks-box > .panel-label {
+      position: absolute;
+      top: -11px;
+      left: 12px;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 1px 8px;
+      border-radius: 5px;
+    }
+    .aks-qa { border-color: #f59e0b; }
+    .aks-qa > .panel-label { background: #0a0800; border: 1px solid #f59e0b; color: #fbbf24; }
+    .aks-prod { border-color: #10b981; }
+    .aks-prod > .panel-label { background: #001a0d; border: 1px solid #10b981; color: #34d399; }
+
+    /* ── NODE POOLS ── */
+    .nodepool-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .node-card {
+      border: 1.5px solid;
+      border-radius: 9px;
+      padding: 10px 11px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      background: rgba(0,0,0,0.3);
+    }
+    .node-card .icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .node-card .info strong { display: block; font-size: 12px; font-weight: 700; line-height: 1.3; }
+    .node-card .info span { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+
+    .nc-blue   { border-color: #3b82f6; }
+    .nc-amber  { border-color: #f59e0b; }
+    .nc-green  { border-color: #10b981; }
+    .nc-purple { border-color: #8b5cf6; }
+    .nc-pink   { border-color: #f472b6; }
+    .nc-teal   { border-color: #14b8a6; }
+    .nc-gray   { border-color: #64748b; }
+    .nc-red    { border-color: #f43f5e; }
+
+    /* ── COMPARE TABLE ── */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .compare-table th {
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 700;
+      border-bottom: 2px solid #1e293b;
+    }
+    .compare-table th:first-child { color: #94a3b8; }
+    .compare-table th:nth-child(2) { background: rgba(245,158,11,0.08); color: #fbbf24; }
+    .compare-table th:nth-child(3) { background: rgba(16,185,129,0.08); color: #34d399; }
+    .compare-table td {
+      padding: 8px 14px;
+      border-bottom: 1px solid #1e293b;
+      vertical-align: top;
+      color: #94a3b8;
+    }
+    .compare-table td:first-child { color: #c084fc; font-weight: 600; }
+    .compare-table td:nth-child(2) { background: rgba(245,158,11,0.03); }
+    .compare-table td:nth-child(3) { background: rgba(16,185,129,0.03); }
+    .compare-table td code {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 11px;
+      color: #7dd3fc;
+    }
+    .compare-table tr:last-child td { border-bottom: none; }
+
+    /* ── IAM & IDENTITY ── */
+    .identity-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .id-card {
+      border: 1px solid #334155;
+      border-radius: 11px;
+      padding: 14px;
+      background: rgba(0,0,0,0.3);
+    }
+    .id-card h3 {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .id-item {
+      font-size: 11px;
+      color: #94a3b8;
+      padding: 3px 0;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .id-item:last-child { border-bottom: none; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .dot-green { background: #22c55e; }
+    .dot-blue  { background: #38bdf8; }
+    .dot-purple{ background: #a855f7; }
+
+    /* ── STATE BACKEND ── */
+    .state-box {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(139, 92, 246, 0.07);
+      border: 1px solid #4c1d95;
+      border-radius: 12px;
+      padding: 14px 18px;
+    }
+    .state-box .state-icon { font-size: 32px; flex-shrink: 0; }
+    .state-box .state-info strong { display: block; font-size: 14px; color: #c4b5fd; font-weight: 700; }
+    .state-box .state-info span { font-size: 12px; color: #64748b; }
+    .state-keys {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .state-key {
+      background: #0f172a;
+      border: 1px solid #4c1d95;
+      border-radius: 5px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-family: monospace;
+      color: #a78bfa;
+    }
+
+    /* ── CARDS ── */
+    .card {
+      background: #0d1526;
+      border: 1px solid #1e293b;
+      border-radius: 14px;
+      padding: 18px 20px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    /* ── FLOW CONNECTOR ── */
+    .flow-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      margin: 2px 0;
+    }
+    .flow-arrow { color: #3b82f6; font-size: 22px; line-height: 1; }
+    .flow-label {
+      font-size: 11px;
+      color: #475569;
+      background: #0a1120;
+      border: 1px solid #1e293b;
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+
+    @media (max-width: 700px) {
+      .env-grid, .identity-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🌐 Project-5 — Azure AKS Infrastructure Architecture</h1>
+  <p>Python Flask Transaction & Digital Signing Service — Terraform-provisioned Azure Kubernetes Service in <strong>Central India</strong></p>
+  <div class="badge-row">
+    <span class="badge">📍 Region: centralindia</span>
+    <span class="badge">🟡 QA: flask-2fa-aks-qa</span>
+    <span class="badge">🟢 Prod: flask-2fa-aks-prod</span>
+    <span class="badge">🔐 Workload Identity + OIDC</span>
+    <span class="badge">🔄 Azure CNI Networking</span>
+    <span class="badge">🗄️ Azure Blob Remote State</span>
+  </div>
+</header>
+
+<div class="canvas">
+
+  <!-- ── ENTRY POINT ── -->
+  <div class="card">
+    <div class="section-title">Entry Points</div>
+    <div class="nodepool-grid">
+      <div class="node-card nc-blue">
+        <div class="icon">🌐</div>
+        <div class="info">
+          <strong>Internet / Clients</strong>
+          <span>End users, API callers<br/>GitHub Actions CI/CD</span>
+        </div>
+      </div>
+      <div class="node-card nc-blue">
+        <div class="icon">⚖️</div>
+        <div class="info">
+          <strong>Azure Standard Load Balancer</strong>
+          <span>Zone-redundant frontend IP<br/>TCP/HTTP health probes</span>
+        </div>
+      </div>
+      <div class="node-card nc-purple">
+        <div class="icon">🔑</div>
+        <div class="info">
+          <strong>AKS Public API Server</strong>
+          <span>kubectl access<br/>GitHub OIDC federation</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-connector">
+    <div class="flow-arrow">↓</div>
+    <div class="flow-label">Routes into Azure Cloud</div>
+  </div>
+
+  <!-- ── AZURE CLOUD ── -->
+  <div class="azure-cloud">
+    <div class="panel-label">☁️ MICROSOFT AZURE — centralindia (Central India)</div>
+
+    <!-- SHARED STATE -->
+    <div class="shared-box" style="margin-top:14px">
+      <div class="panel-label">🔧 Shared Infrastructure (Both Environments)</div>
+      <div style="margin-top:12px">
+        <div class="state-box">
+          <div class="state-icon">🗄️</div>
+          <div class="state-info">
+            <strong>Azure Blob Storage — Terraform Remote State Backend</strong>
+            <span>Resource Group: rg-terraform-state &nbsp;|&nbsp; Storage Account: tfstateflaskmulticloud &nbsp;|&nbsp; Container: tfstate</span>
+            <div class="state-keys">
+              <span class="state-key">azure.qa.terraform.tfstate</span>
+              <span class="state-key">azure.prod.terraform.tfstate</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TWO ENVIRONMENTS -->
+    <div class="env-grid">
+
+      <!-- QA ENV -->
+      <div class="env-box env-qa">
+        <div class="panel-label">🟡 QA ENVIRONMENT — Cost-Optimized Single Node</div>
+
+        <div class="nodepool-grid" style="margin-top:14px">
+          <div class="node-card nc-amber">
+            <div class="icon">📁</div>
+            <div class="info">
+              <strong>Resource Group</strong>
+              <span>rg-flask-multicloud-qa<br/>Tag: Environment=QA</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="vnet-box">
+          <div class="panel-label">🔷 VNet: flask-2fa-aks-qa-vnet — 10.240.0.0/16</div>
+          <div class="nodepool-grid" style="margin-top:12px">
+            <div class="node-card nc-teal">
+              <div class="icon">📡</div>
+              <div class="info">
+                <strong>Subnet: aks-qa-subnet</strong>
+                <span>10.240.0.0/20<br/>Azure CNI pod IPs</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="aks-box aks-qa">
+            <div class="panel-label">☸️ AKS: flask-2fa-aks-qa — Kubernetes 1.29</div>
+            <div class="nodepool-grid" style="margin-top:12px">
+              <div class="node-card nc-amber">
+                <div class="icon">🖥️</div>
+                <div class="info">
+                  <strong>Node Pool: systempool</strong>
+                  <span>Standard_B2s<br/>2 vCPU | 4 GB RAM<br/>1 Node (Fixed)<br/>OS Disk: 30 GB</span>
+                </div>
+              </div>
+              <div class="node-card nc-gray">
+                <div class="icon">🔐</div>
+                <div class="info">
+                  <strong>Identity</strong>
+                  <span>SystemAssigned<br/>Managed Identity</span>
+                </div>
+              </div>
+              <div class="node-card nc-teal">
+                <div class="icon">🌐</div>
+                <div class="info">
+                  <strong>Network</strong>
+                  <span>Plugin: azure (CNI)<br/>LB SKU: Standard<br/>dns_prefix: flask-aks-qa</span>
+                </div>
+              </div>
+              <div class="node-card nc-purple">
+                <div class="icon">🔑</div>
+                <div class="info">
+                  <strong>OIDC + Workload Identity</strong>
+                  <span>oidc_issuer: enabled<br/>workload_identity: enabled</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /vnet-box -->
+      </div><!-- /env-qa -->
+
+      <!-- PROD ENV -->
+      <div class="env-box env-prod">
+        <div class="panel-label">🟢 PRODUCTION ENVIRONMENT — HA Auto-Scaling</div>
+
+        <div class="nodepool-grid" style="margin-top:14px">
+          <div class="node-card nc-green">
+            <div class="icon">📁</div>
+            <div class="info">
+              <strong>Resource Group</strong>
+              <span>rg-flask-multicloud-prod<br/>Tag: Criticality=Tier-1</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="vnet-box">
+          <div class="panel-label">🔷 VNet: flask-2fa-aks-prod-vnet — 10.250.0.0/16</div>
+          <div class="nodepool-grid" style="margin-top:12px">
+            <div class="node-card nc-teal">
+              <div class="icon">📡</div>
+              <div class="info">
+                <strong>Subnet: aks-prod-subnet</strong>
+                <span>10.250.0.0/20<br/>Azure CNI pod IPs</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="aks-box aks-prod">
+            <div class="panel-label">☸️ AKS: flask-2fa-aks-prod — Kubernetes 1.29</div>
+            <div class="nodepool-grid" style="margin-top:12px">
+              <div class="node-card nc-green">
+                <div class="icon">🖥️</div>
+                <div class="info">
+                  <strong>Node Pool: systempool</strong>
+                  <span>Standard_D2s_v5<br/>2 vCPU | 8 GB RAM<br/>Min: 2 | Max: 6<br/>Autoscaling: ON<br/>OS Disk: 50 GB</span>
+                </div>
+              </div>
+              <div class="node-card nc-gray">
+                <div class="icon">🔐</div>
+                <div class="info">
+                  <strong>Identity</strong>
+                  <span>SystemAssigned<br/>Managed Identity</span>
+                </div>
+              </div>
+              <div class="node-card nc-teal">
+                <div class="icon">🌐</div>
+                <div class="info">
+                  <strong>Network</strong>
+                  <span>Plugin: azure (CNI)<br/>LB SKU: Standard<br/>dns_prefix: flask-aks-prod</span>
+                </div>
+              </div>
+              <div class="node-card nc-purple">
+                <div class="icon">🔑</div>
+                <div class="info">
+                  <strong>OIDC + Workload Identity</strong>
+                  <span>oidc_issuer: enabled<br/>workload_identity: enabled</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /vnet-box -->
+      </div><!-- /env-prod -->
+
+    </div><!-- /env-grid -->
+
+    <!-- IDENTITY & AUTH -->
+    <div class="section-title" style="margin-top:22px">Identity, Authentication & Security</div>
+    <div class="identity-grid">
+      <div class="id-card">
+        <h3 style="color:#a78bfa">🔑 Workload Identity (OIDC)</h3>
+        <div class="id-item"><span class="dot dot-purple"></span>Zero static client secrets</div>
+        <div class="id-item"><span class="dot dot-purple"></span>Entra ID short-lived tokens</div>
+        <div class="id-item"><span class="dot dot-purple"></span>GitHub Actions federation</div>
+        <div class="id-item"><span class="dot dot-purple"></span>azure/login OIDC action</div>
+      </div>
+      <div class="id-card">
+        <h3 style="color:#34d399">🛡️ SystemAssigned Managed Identity</h3>
+        <div class="id-item"><span class="dot dot-green"></span>Auto-manages Azure resources</div>
+        <div class="id-item"><span class="dot dot-green"></span>Load balancer provisioning</div>
+        <div class="id-item"><span class="dot dot-green"></span>Disk / NIC management</div>
+        <div class="id-item"><span class="dot dot-green"></span>No credential rotation needed</div>
+      </div>
+      <div class="id-card">
+        <h3 style="color:#7dd3fc">🌐 Azure CNI Networking</h3>
+        <div class="id-item"><span class="dot dot-blue"></span>Pods get real VNet IPs</div>
+        <div class="id-item"><span class="dot dot-blue"></span>No overlay NAT overhead</div>
+        <div class="id-item"><span class="dot dot-blue"></span>Standard LB — zone-redundant</div>
+        <div class="id-item"><span class="dot dot-blue"></span>Direct pod-to-pod routing</div>
+      </div>
+    </div>
+
+  </div><!-- /azure-cloud -->
+
+  <!-- COMPARE TABLE -->
+  <div class="card">
+    <div class="section-title">QA vs Production — Side-by-Side Comparison</div>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>🟡 QA Environment</th>
+          <th>🟢 Production Environment</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Resource Group</td><td><code>rg-flask-multicloud-qa</code></td><td><code>rg-flask-multicloud-prod</code></td></tr>
+        <tr><td>AKS Cluster Name</td><td><code>flask-2fa-aks-qa</code></td><td><code>flask-2fa-aks-prod</code></td></tr>
+        <tr><td>VNet CIDR</td><td><code>10.240.0.0/16</code></td><td><code>10.250.0.0/16</code> (non-overlapping)</td></tr>
+        <tr><td>Subnet</td><td><code>10.240.0.0/20</code></td><td><code>10.250.0.0/20</code></td></tr>
+        <tr><td>VM Size</td><td><code>Standard_B2s</code> — Burstable, 2vCPU 4GB</td><td><code>Standard_D2s_v5</code> — Dedicated, 2vCPU 8GB</td></tr>
+        <tr><td>Node Count</td><td>Fixed <code>1</code> node</td><td>Autoscaling <code>min:2</code> → <code>max:6</code></td></tr>
+        <tr><td>OS Disk</td><td><code>30 GB</code></td><td><code>50 GB</code></td></tr>
+        <tr><td>Auto-Scaling</td><td>❌ Disabled</td><td>✅ Enabled (Cluster Autoscaler)</td></tr>
+        <tr><td>Terraform State Key</td><td><code>azure.qa.terraform.tfstate</code></td><td><code>azure.prod.terraform.tfstate</code></td></tr>
+        <tr><td>Purpose</td><td>Integration testing, staging, CI validation</td><td>Live production traffic, HA guaranteed</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

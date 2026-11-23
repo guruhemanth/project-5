@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f0f4f8;
+      margin: 0;
+    }
+    header {
+      background-color: #4b6cb7;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    nav {
+      background: #fff;
+      display: flex;
+      justify-content: space-around;
+      padding: 15px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    nav a {
+      text-decoration: none;
+      color: #333;
+      font-weight: bold;
+    }
+    main {
+      padding: 40px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Welcome to Your Dashboard</h1>
+  </header>
+  <nav>
+    <a href="home.html">Home</a>
+    <div>
+  <label for="transactionHeader" style="font-weight: bold; display: block; margin-bottom: 8px;">
+    Transaction Header
+  </label>
+  <select id="transactionHeader" name="transactionHeader"
+          style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+    <option value="" disabled selected>Transaction type</option>
+    <option value="file_transaction">File Transaction</option>
+    <option value="form_transaction">Form Transaction</option>
+  </select>
+</div>
+    <a href="login.html">Logout</a>
+  </nav>
+  <main>
+  <h2>Hello, User!</h2>
+  <h3>API Integration Steps</h3>
+  <ul>
+	<li><a href="/Pre-Requsites">Pre-Requsites</a></li>
+    <li><a href="/generate-ecc-key">Generate ECC Key Pair</a></li>
+	<li><a href="/JWTAPI">JWT-API</a></li>
+    <li><a href="/LoginAPI">LoginAPI</a></li>
+    <li><a href="/TransactionAPI">TransactionAPI</a></li>
+  </ul>
+</main>
+
+</body>
+</html>
+<script>
+  document.getElementById("transactionHeader").addEventListener("change", function () {
+    if (this.value === "file_transaction") {
+      window.location.href = "filetransaction.html";
+    } else if (this.value === "form_transaction") {
+      window.location.href = "formtransaction.html";
+    }
+  });
+</script>

@@ -1,0 +1,156 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_REPO = 'python-transaction-flask-app'
+        IMAGE_TAG = "v2.${BUILD_NUMBER}"
+        EC2_HOST = credentials('EC2_HOST')          // EC2 public IP stored in Jenkins credentials
+        EC2_USER = credentials('EC2_USER')          // e.g. ubuntu or ec2-user
+        EC2_SSH_KEY = credentials('EC2_SSH_KEY')    // SSH private key (.pem) stored in Jenkins
+    }
+
+    options {
+        timeout(time: 15, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        // ── Stage 0: Universal OS Package Manager Setup ─────────────────────
+        stage('0. Setup Linux System Dependencies') {
+            steps {
+                sh '''
+                    echo "🔍 Checking system dependencies (Python3, Pip, Venv, GCC, LibPQ, Docker CLI, Ansible)..."
+                    
+                    if command -v apt-get >/dev/null 2>&1; then
+                        PKG_MANAGER="apt-get"
+                        UPDATE_CMD="apt-get update"
+                        INSTALL_CMD="apt-get install -y"
+                        DEPS="python3 python3-pip python3-venv gcc libpq-dev docker.io ansible"
+                    elif command -v dnf >/dev/null 2>&1; then
+                        PKG_MANAGER="dnf"
+                        UPDATE_CMD="dnf check-update || true"
+                        INSTALL_CMD="dnf install -y"
+                        DEPS="python3 python3-pip gcc libpq-devel docker ansible"
+                    elif command -v yum >/dev/null 2>&1; then
+                        PKG_MANAGER="yum"
+                        UPDATE_CMD="yum check-update || true"
+                        INSTALL_CMD="yum install -y"
+                        DEPS="python3 python3-pip gcc postgresql-devel docker ansible"
+                    fi
+
+                    MISSING=0
+                    command -v python3 >/dev/null 2>&1 || MISSING=1
+                    python3 -m venv --help >/dev/null 2>&1 || MISSING=1
+                    command -v gcc >/dev/null 2>&1 || MISSING=1
+                    command -v docker >/dev/null 2>&1 || MISSING=1
+                    command -v ansible-playbook >/dev/null 2>&1 || MISSING=1
+
+                    if [ "$MISSING" -eq 1 ]; then
+                        echo "📦 Installing missing system packages using $PKG_MANAGER..."
+                        $UPDATE_CMD
+                        $INSTALL_CMD $DEPS
+                    else
+                        echo "✅ All Linux system dependencies (Python3, Venv, GCC, LibPQ, Docker, Ansible) are ready!"
+                    fi
+                '''
+            }
+        }
+
+        // ── Stage 1: Checkout Source Code & Set Directory ───────────────────
+        stage('1. Checkout Source Code') {
+            steps {
+                checkout scm
+                script {
+                    if (fileExists('python_flask_app/approach_1_local/server_xorkeesign.py')) {
+                        echo "📁 Target project files found inside 'python_flask_app/approach_1_local' subfolder."
+                        env.PROJECT_DIR = 'python_flask_app/approach_1_local'
+                    } else if (fileExists('server_xorkeesign.py')) {
+                        echo "📁 Target project files found in root repository workspace."
+                        env.PROJECT_DIR = '.'
+                    } else {
+                        error "❌ Could not locate server_xorkeesign.py in repository root or python_flask_app/approach_1_local!"
+                    }
+                }
+            }
+        }
+
+        // ── Stage 2: Code Linting & Python Dependency Setup ────────────────
+        stage('2. Code Linting (Flake8)') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        python3 -m venv venv || python3 -m venv --system-site-packages venv
+                        . venv/bin/activate
+                        pip install --upgrade pip
+                        pip install -r requirements-dev.txt
+                        flake8 server_xorkeesign.py models.py routes/auth.py --statistics
+                    '''
+                }
+            }
+        }
+
+        // ── Stage 3: Automated Testing (Pytest with In-Memory SQLite) ───────
+        stage('3. Automated Testing (Pytest)') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        echo "🧪 Running Pytest tests with isolated SQLite in-memory DB..."
+                        . venv/bin/activate
+                        DATABASE_URL="sqlite:///:memory:" pytest --verbose
+                    '''
+                }
+            }
+        }
+
+        // ── Stage 4: Security Audits (Bandit & Pip-Audit) ──────────────────
+        stage('4. Security Audits') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        . venv/bin/activate
+                        bandit -r . -x ./venv,./test_app.py
+                        pip-audit
+                    '''
+                }
+            }
+        }
+
+        // ── Stage 5: Build Docker Image ────────────────────────────────────
+        stage('5. Build Docker Image') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh "docker build -t ${DOCKER_HUB_REPO}:${IMAGE_TAG} ."
+                }
+            }
+        }
+
+        // ── Stage 6: Kubernetes Deployment ──────────────────────────────────
+        stage('6. Deploy to Kubernetes Cluster') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        export PATH=$PATH:/usr/local/bin
+                        export KUBECONFIG=/var/jenkins_home/.kube/config
+                        kind load docker-image ${DOCKER_HUB_REPO}:${IMAGE_TAG} --name multi-node
+                        kubectl apply -f postgres-deployment.yaml
+                        sed -i "s|image: python-transaction-flask-app:.*|image: ${DOCKER_HUB_REPO}:${IMAGE_TAG}|g" deployment.yaml
+                        kubectl apply -f deployment.yaml
+                        kubectl rollout status deployment/flask-app-deployment
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "🧹 Build completed."
+        }
+        success {
+            echo "✅ CI/CD Pipeline Executed Successfully!"
+        }
+        failure {
+            echo "❌ CI/CD Pipeline Failed! Check build logs."
+        }
+    }
+}

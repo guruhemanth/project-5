@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ECC Key Pair Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🔐 ECC Key Pair Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(to right, #f0f4f8, #d9e2ec);
+      margin: 0;
+      padding: 40px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+
+    button {
+      display: block;
+      margin: 20px auto;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      background: #3498db;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #2980b9;
+    }
+
+    .key-block {
+      margin-top: 30px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #34495e;
+    }
+
+    pre {
+      background: #ecf0f1;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 14px;
+      color: #7f8c8d;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 ECC Key Pair Generator</h1>
+    <button onclick="generateKeyPair()">Generate Key Pair</button>
+
+    <div class="key-block">
+      <h2>📤 Public Key (Base64)</h2>
+      <pre id="publicKey">Click the button to generate keys...</pre>
+    </div>
+
+    <div class="key-block">
+      <h2>🔒 Private Key (Base64)</h2>
+      <pre id="privateKey">Click the button to generate keys...</pre>
+    </div>
+
+    <div class="footer">
+      Powered by Web Crypto API · Secure & Client-Side
+    </div>
+  </div>
+  
+  <a href="/home" style="padding: 10px 20px; background-color: #007BFF; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">
+    Back
+	</a>
+
+  <script>
+    async function generateKeyPair() {
+      try {
+        const keyPair = await window.crypto.subtle.generateKey(
+          {
+            name: "ECDSA",
+            namedCurve: "P-256"
+          },
+          true,
+          ["sign", "verify"]
+        );
+
+        const publicKey = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+        const privateKey = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+
+        document.getElementById("publicKey").textContent = arrayBufferToBase64(publicKey);
+        document.getElementById("privateKey").textContent = arrayBufferToBase64(privateKey);
+
+        console.log("✅ ECC key pair generated.");
+      } catch (err) {
+        console.error("❌ Error generating key pair:", err);
+      }
+    }
+
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let b of bytes) {
+        binary += String.fromCharCode(b);
+      }
+      return btoa(binary);
+    }
+  </script>
+</body>
+</html>

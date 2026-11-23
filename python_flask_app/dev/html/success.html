@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Transaction Successful</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #eaf4ea;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .success-box {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    }
+    .success-box h2 {
+      color: #2e7d32;
+    }
+    .success-icon {
+      font-size: 60px;
+      color: #4caf50;
+      margin-bottom: 20px;
+    }
+    .btn {
+      margin-top: 30px;
+      padding: 10px 20px;
+      background-color: #4b6cb7;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      text-decoration: none;
+    }
+    .btn:hover {
+      background-color: #3a56a5;
+    }
+  </style>
+</head>
+<body>
+  <div class="success-box">
+    <div class="success-icon">✅</div>
+    <h2>Transaction Submitted Successfully!</h2>
+    <p>Your transaction has been recorded. Thank you!</p>
+    <a href="/home" class="btn">Back to Dashboard</a>
+    <br /><br />
+    <a href="/formtransaction" class="btn">Add Another Transaction</a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Banking Dashboard</title>
+  <style>
+    :root {
+      --primary-blue: #1a2a6c;
+      --accent-blue: #4b6cb7;
+      --bg-gray: #f4f7f9;
+      --card-white: #ffffff;
+      --text-dark: #333;
+    }
+
+    body {
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-gray);
+      margin: 0;
+      color: var(--text-dark);
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
+      color: white;
+      padding: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .nav-container {
+      background: var(--card-white);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .selector-box { width: 250px; }
+
+    select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #d1d9e6;
+      background-color: #f8fbff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    main {
+      padding: 40px 20px;
+      max-width: 1000px;
+      margin: auto;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-white);
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+      border-top: 4px solid var(--accent-blue);
+    }
+
+    .card h3 { margin-top: 0; color: var(--primary-blue); }
+    .card p { font-size: 0.9rem; color: #666; line-height: 1.5; }
+
+    .logout-btn {
+      color: #d9534f;
+      text-decoration: none;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Financial Gateway</h1>
+    <div>Welcome, User</div>
+  </header>
+
+  <nav class="nav-container">
+    <strong>Dashboard Overview</strong>
+    <div class="selector-box">
+      <select id="transactionHeader">
+        <option value="" disabled selected>Initiate Transaction...</option>
+        <option value="file_transaction">File Transaction</option>
+        <option value="form_transaction">Form Transaction</option>
+      </select>
+    </div>
+    <a href="login.html" class="logout-btn">Logout</a>
+  </nav>
+
+  <main>
+    <h2>System Status & Integration</h2>
+    <div class="dashboard-grid">
+      <div class="card">
+        <h3>Prerequisites</h3>
+        <p>Ensure all environment variables and compliance documentation are configured before initiating requests.</p>
+      </div>
+      <div class="card">
+        <h3>Security</h3>
+        <p>ECC Key Pairs are managed and rotated periodically to ensure high-grade data encryption.</p>
+      </div>
+      <div class="card">
+        <h3>Authentication</h3>
+        <p>JWT-based stateless authentication ensures secure and fast access to banking endpoints.</p>
+      </div>
+      <div class="card">
+        <h3>API Connectivity</h3>
+        <p>Direct integration with the core banking ledger for real-time transaction processing.</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById("transactionHeader").addEventListener("change", function () {
+      if (this.value === "file_transaction") {
+        window.location.href = "filetransaction.html";
+      } else if (this.value === "form_transaction") {
+        window.location.href = "formtransaction.html";
+      }
+    });
+  </script>
+</body>
+</html>

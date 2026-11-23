@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Server Prerequisites</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        ul {
+            line-height: 1.8;
+        }
+        code {
+            background-color: #eee;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        pre {
+            background-color: #eee;
+            padding: 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Server Prerequisites</h1>
+        <p>Before running the Python server, ensure the following prerequisites are met:</p>
+
+        <h2>📁 Directory Structure</h2>
+        <ul>
+            <li><code>/html</code> – contains all HTML pages</li>
+            <li><code>/scripts</code> – contains JavaScript files</li>
+        </ul>
+
+        <h2>🐍 Python Requirements</h2>
+        <ul>
+            <li>Python 3.6 or higher</li>
+            <li>Standard library modules used:
+                <ul>
+                    <li><code>http.server</code></li>
+                    <li><code>socketserver</code></li>
+                    <li><code>os</code></li>
+                    <li><code>json</code></li>
+                    <li><code>http.client</code></li>
+                    <li><code>ssl</code></li>
+                </ul>
+            </li>
+            <li>No external packages required</li>
+        </ul>
+
+        <h2>🚀 Setup Instructions</h2>
+        <pre><code>python your_server_script.py</code></pre>
+        <p>Once running, visit <code>http://localhost:8090</code> in your browser.</p>
+
+        <h2>🌐 Network Requirements</h2>
+        <ul>
+            <li>External API server must be reachable at <code>https://192.168.8.150:4443</code></li>
+            <li>Port <code>8090</code> must be open and not blocked by firewall</li>
+        </ul>
+
+        <h2>⚠️ Notes</h2>
+        <ul>
+            <li>SSL verification is disabled for development purposes using <code>ssl._create_unverified_context()</code></li>
+            <li>Ensure JSON payloads sent to <code>/home</code> and <code>/success</code> are properly formatted</li>
+        </ul>
+    </div>
+	<a href="/home" style="padding: 10px 20px; background-color: #007BFF; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">
+    Back
+	</a>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project-5: Master Architecture (StatefulSet + 2-Replica App + Desired: 1, Min: 1, Max: 3)</title>
+  <!-- Verified Mermaid JS 10.9.1 -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #070b14;
+      --card-bg: #101726;
+      --border: #1e293b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-emerald: #10b981;
+      --accent-purple: #a855f7;
+      --accent-amber: #f59e0b;
+      --accent-pink: #f472b6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+      background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0c1527 30%, var(--bg) 70%);
+      color: var(--text);
+      padding: 40px 20px 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      max-width: 950px;
+    }
+    h1 {
+      font-size: 30px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #38bdf8 0%, #34d399 50%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 14.5px;
+      line-height: 1.6;
+    }
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 15px;
+    }
+    .badge {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid var(--border);
+      color: var(--accent-blue);
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+      width: 100%;
+      max-width: 1280px;
+      margin-top: 20px;
+    }
+    .section-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 30px;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+      overflow-x: auto;
+    }
+    .section-card h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-desc {
+      color: var(--muted);
+      font-size: 13.5px;
+      line-height: 1.5;
+      margin-bottom: 22px;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 14px;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      background: #090e17;
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid #1e293b;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Project-5: Master Production Architecture</h1>
+    <p class="subtitle">PostgreSQL StatefulSet with Attached Azure Managed Disk (storageClassName: managed-csi), 2-Replica App Server (RollingUpdate), and Production 2-Core Machines (Desired: 1, Min: 1, Max: 3).</p>
+    
+    <div class="badges">
+      <span class="badge">🐘 PostgreSQL StatefulSet (storageClassName: managed-csi)</span>
+      <span class="badge">🐍 Flask App: 2 Replicas (RollingUpdate)</span>
+      <span class="badge">🖥️ Prod: 2-Core Machines (Desired: 1, Min: 1, Max: 3)</span>
+      <span class="badge">🧪 QA: Standard_B2s Basic Machine</span>
+      <span class="badge">⚖️ Standard L4 Load Balancer</span>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- DIAGRAM 1: PRODUCTION WORKLOAD TOPOLOGY -->
+    <div class="section-card">
+      <h2 style="color: var(--accent-emerald);">1. Target Production Cluster Topology</h2>
+      <p class="section-desc">Client traffic via Layer-4 Load Balancer, distributed across 2 Flask application pods (RollingUpdate), communicating with PostgreSQL StatefulSet mounted to an Azure Managed Disk.</p>
+      
+      <pre class="mermaid">
+graph TD
+    classDef client fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+    classDef lb fill:#1e293b,stroke:#0ea5e9,stroke-width:2px,color:#f8fafc
+    classDef pod fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#ffffff
+    classDef db fill:#312e81,stroke:#818cf8,stroke-width:2px,color:#ffffff
+    classDef storage fill:#701a75,stroke:#f472b6,stroke-width:2px,color:#ffffff
+
+    Client[End User / External Client]:::client
+    SLB[Azure Standard Load Balancer / AWS NLB]:::lb
+
+    subgraph Cluster [Kubernetes Production Cluster: Desired: 1, Min: 1, Max: 3 Nodes | 2-Core VMSS]
+        AppSvc["Service: flask-app-service<br/>(LoadBalancer | Port: 8090)"]:::lb
+
+        subgraph AppDeployment [Flask App Deployment: 2 Pods | RollingUpdate]
+            Pod1["Flask Pod 1 (Active)<br/>100m-500m CPU | 128Mi-512Mi RAM"]:::pod
+            Pod2["Flask Pod 2 (Active)<br/>100m-500m CPU | 128Mi-512Mi RAM"]:::pod
+        end
+
+        DBSvc["Service: postgres-service<br/>(ClusterIP | Port: 5432)"]:::lb
+
+        subgraph DBStatefulSet [PostgreSQL StatefulSet: 1 Replica]
+            DBPod["Postgres Pod: postgres-0<br/>postgres:15-alpine | PGDATA Persistent"]:::db
+        end
+
+        subgraph StorageLayer [Cloud Persistent Block Storage]
+            ManagedDisk[("volumeClaimTemplates: postgres-data<br/>storageClassName: managed-csi (10Gi)<br/>Azure Managed Disk (ReadWriteOnce, Ext4)")]:::storage
+        end
+    end
+
+    Client -->|"TCP Port 8090"| SLB
+    SLB --> AppSvc
+    AppSvc -->|Round-Robin| Pod1
+    AppSvc -->|Round-Robin| Pod2
+    Pod1 -->|"SQLAlchemy Port 5432"| DBSvc
+    Pod2 -->|"SQLAlchemy Port 5432"| DBSvc
+    DBSvc --> DBPod
+    DBPod ===|CSI Direct Mount /var/lib/postgresql/data| ManagedDisk
+      </pre>
+    </div>
+
+    <!-- DIAGRAM 2: SCALING & SIZING -->
+    <div class="section-card">
+      <h2 style="color: var(--accent-blue);">2. Cluster Sizing & Elastic Scaling (QA vs Production)</h2>
+      <p class="section-desc">Comparison of node scaling boundaries, machine compute tiers, and sizing between QA and Production environments across Azure and AWS.</p>
+      
+      <pre class="mermaid">
+graph LR
+    classDef qa fill:#78350f,stroke:#f59e0b,stroke-width:2px,color:#ffffff
+    classDef prod fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#ffffff
+
+    subgraph QA_Environment [QA Environment: Basic Machine Tier]
+        QA_Node["Node Count: 1 (Fixed, No Autoscaling)<br/>Azure: Standard_B2s (2 vCPU, 4GB RAM, Burstable)<br/>AWS: t3.small (2 vCPU, 2GB RAM)<br/>Goal: Cost-effective staging & CI testing"]:::qa
+    end
+
+    subgraph Prod_Environment [Production Environment: 2-Core Elastic Cluster]
+        Prod_Nodes["Node Scaling: Desired: 1 | Min: 1 | Max: 3 Nodes<br/>Azure: Standard_D2s_v5 (2 vCPU, 8GB RAM, Dedicated Compute)<br/>AWS: t3.medium (2 vCPU, 4GB RAM)<br/>Goal: High availability, zero-downtime rolling updates"]:::prod
+    end
+      </pre>
+    </div>
+
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        darkMode: true,
+        background: '#090e17',
+        primaryColor: '#0369a1',
+        primaryTextColor: '#f8fafc',
+        primaryBorderColor: '#0ea5e9',
+        lineColor: '#38bdf8',
+        secondaryColor: '#1e293b',
+        tertiaryColor: '#0f172a',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif',
+        fontSize: '13px'
+      },
+      flowchart: {
+        htmlLabels: true,
+        curve: 'basis'
+      }
+    });
+  </script>
+</body>
+</html>
