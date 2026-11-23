@@ -1,0 +1,91 @@
+name: Production CI/CD Pipeline - Azure AKS (OIDC)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # Required for Azure OIDC authentication
+  contents: read
+
+jobs:
+  test-and-lint:
+    name: 🧪 Production Quality Gates
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python_flask_app/approach_4_eks
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies & run tests
+        run: |
+          pip install -r requirements.txt
+          pip install flake8 pytest pytest-cov bandit pip-audit
+          flake8 . --exclude=venv,uploads --count --select=E9,F63,F7,F82 --show-source
+          DATABASE_URL="sqlite:///:memory:" pytest --verbose
+          bandit -r . -x ./venv,./uploads,./test_app.py
+          pip-audit -r requirements.txt
+
+  build-and-deploy-prod:
+    name: 🚀 Build, Push & Deploy to Production AKS
+    runs-on: ubuntu-latest
+    needs: test-and-lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Azure via OIDC (Zero Passwords)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to Production ACR
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: python_flask_app/approach_4_eks
+          push: true
+          tags: |
+            ${{ secrets.ACR_NAME }}.azurecr.io/python-transaction-flask-app:${{ github.sha }}
+            ${{ secrets.ACR_NAME }}.azurecr.io/python-transaction-flask-app:latest
+
+      - name: Connect to Production AKS Cluster
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: rg-flask-multicloud-prod
+          cluster-name: flask-2fa-aks-prod
+          admin: 'true'
+
+      - name: Deploy to Production with Automated Rollback Trap
+        run: |
+          cd python_flask_app/approach_4_eks
+          
+          echo "📦 Deploying Postgres StatefulSet with Managed Disk..."
+          kubectl apply -f postgres-deployment.yaml
+          kubectl rollout status statefulset/postgres --timeout=300s
+
+          echo "🚀 Deploying 2-Replica Flask App Server..."
+          sed -i "s|image: guruhemanth/python-transaction-flask-app:.*|image: ${{ secrets.ACR_NAME }}.azurecr.io/python-transaction-flask-app:${{ github.sha }}|g" deployment.yaml
+          kubectl apply -f deployment.yaml
+
+          if ! kubectl rollout status deployment/flask-app-deployment --timeout=300s; then
+            echo "❌ Production Rollout failed! Initiating zero-downtime rollback..."
+            kubectl rollout undo deployment/flask-app-deployment
+            exit 1
+          fi
+
+          echo "✅ Production Deployment Successfully Verified!"
+          kubectl get pods -o wide
+          kubectl get svc
